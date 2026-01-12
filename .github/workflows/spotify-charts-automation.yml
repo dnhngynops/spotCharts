@@ -1,0 +1,126 @@
+name: Spotify Charts Automation
+
+on:
+  # Schedule: Every Thursday at 11 PM PST (7 AM UTC Friday)
+  # PST is UTC-8, so 11 PM PST Thursday = 7 AM UTC Friday
+  schedule:
+    - cron: '0 7 * * 5'  # 7 AM UTC every Friday (11 PM PST Thursday)
+
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  generate-reports:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install system dependencies for WeasyPrint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libpango-1.0-0 \
+            libpangoft2-1.0-0 \
+            libgdk-pixbuf2.0-0 \
+            libffi-dev \
+            libcairo2 \
+            shared-mime-info
+
+      - name: Install Chrome for Selenium
+        uses: browser-actions/setup-chrome@latest
+        with:
+          chrome-version: stable
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create credentials directory
+        run: mkdir -p credentials
+
+      - name: Setup Google Drive credentials
+        env:
+          GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
+        run: |
+          echo "$GOOGLE_DRIVE_CREDENTIALS" > credentials/google-drive-credentials.json
+
+      - name: Create .env file
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          PLAYLIST_1_ID: ${{ secrets.PLAYLIST_1_ID }}
+          PLAYLIST_2_ID: ${{ secrets.PLAYLIST_2_ID }}
+          PLAYLIST_3_ID: ${{ secrets.PLAYLIST_3_ID }}
+          PLAYLIST_4_ID: ${{ secrets.PLAYLIST_4_ID }}
+        run: |
+          cat > .env << EOF
+          # Spotify API Configuration
+          SPOTIFY_CLIENT_ID=$SPOTIFY_CLIENT_ID
+          SPOTIFY_CLIENT_SECRET=$SPOTIFY_CLIENT_SECRET
+
+          # Playlist IDs
+          PLAYLIST_1_ID=$PLAYLIST_1_ID
+          PLAYLIST_2_ID=$PLAYLIST_2_ID
+          PLAYLIST_3_ID=$PLAYLIST_3_ID
+          PLAYLIST_4_ID=$PLAYLIST_4_ID
+
+          # Google Drive Configuration
+          GOOGLE_DRIVE_CREDENTIALS_PATH=./credentials/google-drive-credentials.json
+          GOOGLE_DRIVE_FOLDER_ID=$GOOGLE_DRIVE_FOLDER_ID
+
+          # Email Configuration
+          EMAIL_SMTP_SERVER=$EMAIL_SMTP_SERVER
+          EMAIL_SMTP_PORT=$EMAIL_SMTP_PORT
+          EMAIL_USERNAME=$EMAIL_USERNAME
+          EMAIL_PASSWORD=$EMAIL_PASSWORD
+          EMAIL_TO=$EMAIL_TO
+
+          # Report Generation Configuration
+          GENERATE_HTML=true
+          GENERATE_PDF=true
+          OUTPUT_DIR=./output
+          EOF
+
+      - name: Run Spotify Charts automation
+        run: |
+          echo "Starting Spotify Charts automation..."
+          echo "Timezone: $(TZ='America/Los_Angeles' date '+%Y-%m-%d %H:%M:%S %Z')"
+          python main.py
+
+      - name: Upload artifacts (if needed for debugging)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-logs
+          path: |
+            *.log
+            output/*.html
+            output/*.pdf
+          retention-days: 7
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Spotify Charts automation failed. Check the logs above."
+
+      - name: Success notification
+        if: success()
+        run: |
+          echo "✅ Spotify Charts automation completed successfully!"
+          echo "Reports generated and uploaded to Google Drive"
+          echo "Email notification sent"

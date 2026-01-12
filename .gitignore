@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project-specific
+credentials/google-drive-credentials.json
+token.pickle
+data/*
+!data/README.md
+output/*
+!output/README.md
+logs/*
+!logs/README.md
+
+# Generated reports (HTML/PDF)
+*.html
+*.pdf
+!templates/*.html
+
+# Test outputs
+tests/output/*
+tests/*.log
+tests/*.pdf
+tests/*.html
+
+# Temporary files
+*.log
+
+# Selenium/Browser cache
+.cache
