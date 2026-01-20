@@ -90,11 +90,17 @@ Project documentation and guides:
 
 ```
 docs/
-├── SETUP.md                       # Detailed setup instructions
+├── ARCHITECTURE.md                # System architecture and data flow
 ├── CHANGELOG.md                   # Version history and changes
-├── ROADMAP.md                     # Development roadmap and future features
+├── CONVENTIONS.md                 # Code and documentation conventions
+├── DIRECTORY_STRUCTURE.md         # This file
+├── GITHUB_ACTIONS_SETUP.md        # GitHub Actions automation setup
+├── GOOGLE_DRIVE_SETUP.md          # Google Drive OAuth configuration
+├── METRICS_DOCUMENTATION.md       # Metrics and analytics documentation
 ├── QUICK_START.md                 # Quick start guide for developers
-└── DIRECTORY_STRUCTURE.md         # This file
+├── ROADMAP.md                     # Development roadmap and future features
+├── SECRETS_CHECKLIST.md           # GitHub Secrets reference
+└── SETUP.md                       # Detailed setup instructions
 ```
 
 ## Templates (`templates/`)

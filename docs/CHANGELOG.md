@@ -4,6 +4,70 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [1.7.0] - 2026-01-20
+
+### Changed - Visual Styling Enhancements
+- **Spotify-Style Gradient Background**: Added vertical gradient that flows from header through track rows
+  - Gradient starts with customizable color at top (default: dark green `#1a4a2e`)
+  - Rapid fade: 100% → 80% → 40% → 20% → 8% opacity within first 18% of container
+  - Transitions smoothly to surface color, concentrated near title area
+  - Matches Spotify's signature gradient effect from playlist artwork
+
+- **Gray Title Text**: Changed title from green (`theme.primary`) to theme gray (`theme.text_secondary` / `#B3B3B3`)
+  - "Spotify" label and playlist name now display in light gray
+  - Consistent with Spotify's secondary text color throughout the theme
+  - Provides softer visual appearance against the gradient background
+
+- **Semi-Transparent Table Elements**: Table rows allow gradient to show through
+  - Table header: `rgba(0, 0, 0, 0.2)` - subtle darkening
+  - Table rows: `rgba(0, 0, 0, 0.1)` - very subtle darkening
+  - Table background: fully transparent
+  - Softer borders: `rgba(255, 255, 255, 0.1)` for subtle separators
+
+### Technical Changes
+- **Template Updates** (`templates/table_template.html`):
+  - Added `gradient_color` template variable for customizable gradient base color
+  - Changed `.container` background from solid to linear gradient
+  - Updated `.header h1`, `.spotify-label`, `.playlist-name` colors to `{{ theme.text_secondary }}`
+  - Changed `.spotify-table`, `thead`, `tbody tr` to transparent/semi-transparent backgrounds
+  - Updated border colors to use rgba for softer appearance
+
+### Benefits
+- More authentic Spotify visual appearance
+- Gradient creates visual interest and depth
+- Gray title provides softer, more cohesive appearance
+- Professional, polished report aesthetic
+
+---
+
+## [1.6.0] - 2026-01-12
+
+### Changed - PDF Report Enhancements
+- **Title Format**: Changed from playlist name only to "Spotify [playlist name]" format
+  - Removed playlist image display next to title
+  - Simplified header design for cleaner appearance
+- **Popularity Column**: Fixed right margin to match left side padding
+  - Ensures proper spacing and prevents content cutoff
+  - All columns now have consistent padding (15px)
+
+### Technical Changes
+- **Template Updates** (`templates/table_template.html`):
+  - Removed `.playlist-image` CSS and image display logic
+  - Updated title format in template: `Spotify {{ playlist_name }}`
+  - Adjusted table cell padding to ensure symmetric margins
+  - Fixed container padding and box-sizing for proper layout
+
+- **PDF Generator** (`src/reporting/pdf_generator.py`):
+  - Removed `playlist_image` parameter from template rendering
+  - Simplified template rendering logic
+
+### Benefits
+- Cleaner, more professional title format
+- Consistent column spacing prevents content cutoff
+- Improved visual hierarchy and readability
+
+---
+
 ## [1.5.0] - 2026-01-12
 
 ### Added - GitHub Actions Automation

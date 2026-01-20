@@ -60,9 +60,16 @@ The system follows a **Selenium-Primary + API Enrichment** architecture:
         │                                                     │
         └── PDF Reports (Separate) ────────────────────────┐
             ├── One PDF per playlist                        │
+            ├── Title format: "Spotify [playlist name]"     │
             ├── Single continuous page (no pagination)      │
             ├── Auto-sized to content (~1200-1300mm)        │
             ├── Two-pass rendering for precise height       │
+            ├── Enhanced features:                          │
+            │   • Popularity bars (green visualization)     │
+            │   • Album images next to tracks               │
+            │   • Hyperlinked tracks/artists/albums         │
+            │   • Analytics metrics (total tracks, artists) │
+            │   • Clock icon (🕐) for duration              │
             └── Files: PlaylistName_YYYYMMDD_HHMMSS.pdf     │
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -354,5 +361,5 @@ python main.py
 ---
 
 **Last Updated**: 2026-01-12
-**Version**: 1.5.0
+**Version**: 1.6.0
 **Architecture**: Selenium-Primary + API Enrichment

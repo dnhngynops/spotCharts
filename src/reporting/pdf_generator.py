@@ -5,10 +5,12 @@ This module handles the conversion of HTML reports to PDF format,
 maintaining Spotify theming and styling from the HTML templates.
 """
 import os
+import html
 from typing import List, Dict, Optional
 from datetime import datetime
 from jinja2 import Template
 from weasyprint import HTML, CSS
+from weasyprint.text.fonts import FontConfiguration
 from src.core import config
 
 
@@ -135,9 +137,341 @@ class PDFGenerator:
         # Convert HTML to PDF (always single continuous page)
         return self.generate_pdf_from_html(html_content, filename)
 
+    def _calculate_metrics(self, tracks: List[Dict]) -> List[Dict]:
+        """
+        Calculate metrics for the playlist (e.g., most frequent artists)
+        
+        Args:
+            tracks: List of track dictionaries
+            
+        Returns:
+            List of metric dictionaries with 'label' and 'value' keys
+        """
+        from collections import Counter
+        
+        metrics = []
+        
+        # Count artist appearances
+        artist_counts = Counter()
+        for track in tracks:
+            artists = track.get('artists', [])
+            if isinstance(artists, list):
+                for artist in artists:
+                    if isinstance(artist, dict):
+                        artist_name = artist.get('name', '')
+                    else:
+                        artist_name = str(artist)
+                    if artist_name:
+                        artist_counts[artist_name] += 1
+            elif track.get('artist'):
+                # Fallback to string format
+                artist_names = [a.strip() for a in str(track.get('artist', '')).split(',')]
+                for name in artist_names:
+                    if name:
+                        artist_counts[name] += 1
+        
+        # Get top 3 artists with hyperlinks
+        if artist_counts:
+            top_artists = artist_counts.most_common(3)
+            if top_artists:
+                # Build artist list with hyperlinks - need to find artist URLs from tracks
+                artist_links = []
+                # Create a mapping of artist names to URLs
+                artist_url_map = {}
+                for track in tracks:
+                    artists = track.get('artists', [])
+                    if isinstance(artists, list):
+                        for artist in artists:
+                            if isinstance(artist, dict):
+                                artist_name = artist.get('name', '')
+                                artist_url = artist.get('url', '')
+                                if artist_name and artist_url:
+                                    artist_url_map[artist_name] = artist_url
+                
+                for name, count in top_artists:
+                    artist_url = artist_url_map.get(name, '')
+                    if artist_url:
+                        escaped_name = html.escape(name)
+                        escaped_url = html.escape(artist_url)
+                        artist_links.append(f'<a href="{escaped_url}" target="_blank">{escaped_name}</a> ({count})')
+                    else:
+                        escaped_name = html.escape(name)
+                        artist_links.append(f"{escaped_name} ({count})")
+                
+                top_artist_str = ', '.join(artist_links)
+                metrics.append({
+                    'label': 'Most Frequent Artists',
+                    'value': top_artist_str
+                })
+        
+        return metrics
+    
+    def _format_table_html(self, tracks: List[Dict]) -> str:
+        """
+        Format tracks data into HTML table with hyperlinks, popularity bars, and play buttons
+        
+        Args:
+            tracks: List of track dictionaries
+            
+        Returns:
+            HTML string for the table
+        """
+        # Determine which columns to include
+        columns = config.TABLE_CONFIG['include_columns']
+        
+        # Build table header
+        header_html = '<thead><tr>'
+        header_html += '<th>#</th>'  # Position column
+        
+        # Map column names to display names
+        column_display = {
+            'track_name': 'TRACK',
+            'artist': 'ARTIST',
+            'album': 'ALBUM',
+            'duration': '🕐',  # Clock icon for duration
+            'popularity': 'POPULARITY',
+        }
+        
+        for col in columns:
+            # Skip artist column - will be displayed under track names
+            if col == 'artist':
+                continue
+            if col in ['track_name', 'album', 'duration', 'popularity'] and col != 'playlist':
+                display_name = column_display.get(col, col.upper())
+                header_html += f'<th>{display_name}</th>'
+        
+        header_html += '</tr></thead>'
+        
+        # Build table body
+        body_html = '<tbody>'
+        
+        for idx, track in enumerate(tracks, start=1):
+            position = track.get('position', idx)
+            preview_url = html.escape(str(track.get('preview_url', ''))) if track.get('preview_url') else ''
+            track_url = html.escape(str(track.get('spotify_url', ''))) if track.get('spotify_url') else ''
+            track_name = html.escape(str(track.get('track_name', 'Unknown Track')))
+            
+            body_html += '<tr>'
+            
+            # Position column - just bold number, no play button
+            body_html += '<td class="position-cell">'
+            body_html += f'<span class="position-number">{position}</span>'
+            body_html += '</td>'
+            
+            # Track column with hyperlink, album image, and artist names underneath
+            if 'track_name' in columns:
+                body_html += '<td>'
+                album_image_url = track.get('album_image', '')
+                
+                # Get artist names for display under track name
+                artist_names_html = ''
+                artists = track.get('artists', [])
+                if isinstance(artists, list) and len(artists) > 0:
+                    artist_links = []
+                    for artist in artists:
+                        if isinstance(artist, dict):
+                            artist_name = html.escape(str(artist.get('name', '')))
+                            artist_url = html.escape(str(artist.get('url', ''))) if artist.get('url') else ''
+                            if artist_url:
+                                artist_links.append(f'<a href="{artist_url}" target="_blank">{artist_name}</a>')
+                            else:
+                                artist_links.append(artist_name)
+                        else:
+                            artist_links.append(html.escape(str(artist)))
+                    artist_names_html = ', '.join(artist_links)
+                elif track.get('artist'):
+                    # Fallback to string format
+                    artist_names_html = html.escape(str(track.get('artist', '')))
+                
+                # Build track display with album image and track info
+                if album_image_url:
+                    escaped_image_url = html.escape(str(album_image_url))
+                    body_html += '<div class="track-with-image">'
+                    body_html += f'<img src="{escaped_image_url}" alt="Album art" class="album-image" />'
+                    body_html += '<div class="track-info">'
+                    # Track name
+                    if track_url:
+                        body_html += f'<div class="track-name"><a href="{track_url}" target="_blank">{track_name}</a></div>'
+                    else:
+                        body_html += f'<div class="track-name">{track_name}</div>'
+                    # Artist names underneath in lighter gray
+                    if artist_names_html:
+                        body_html += f'<div class="artist-names">{artist_names_html}</div>'
+                    body_html += '</div></div>'
+                else:
+                    # No album image, just track info
+                    body_html += '<div class="track-info">'
+                    if track_url:
+                        body_html += f'<div class="track-name"><a href="{track_url}" target="_blank">{track_name}</a></div>'
+                    else:
+                        body_html += f'<div class="track-name">{track_name}</div>'
+                    if artist_names_html:
+                        body_html += f'<div class="artist-names">{artist_names_html}</div>'
+                    body_html += '</div>'
+                body_html += '</td>'
+            
+            # Album column with hyperlink
+            if 'album' in columns:
+                body_html += '<td>'
+                album_name = html.escape(str(track.get('album', '')))
+                album_url = html.escape(str(track.get('album_url', ''))) if track.get('album_url') else ''
+                if album_url and album_name:
+                    body_html += f'<a href="{album_url}" target="_blank">{album_name}</a>'
+                elif album_name:
+                    body_html += album_name
+                else:
+                    body_html += 'Unknown Album'
+                body_html += '</td>'
+            
+            # Duration column
+            if 'duration' in columns:
+                duration = html.escape(str(track.get('duration', 'N/A')))
+                body_html += f'<td>{duration}</td>'
+            
+            # Popularity column with bar (inline layout)
+            if 'popularity' in columns:
+                popularity = track.get('popularity')
+                if popularity is not None:
+                    popularity_value = int(popularity)
+                    popularity_width = (popularity_value / 100) * 100  # Percentage width
+                    # Use explicit green color for PDF compatibility
+                    body_html += '<td style="vertical-align: middle;">'
+                    body_html += '<div class="popularity-cell">'
+                    body_html += f'<span class="popularity-value">{popularity_value}</span>'
+                    body_html += '<span class="popularity-bar-container">'
+                    body_html += f'<span class="popularity-bar" style="width: {popularity_width}%; background-color: #1DB954;"></span>'
+                    body_html += '</span>'
+                    body_html += '</div></td>'
+                else:
+                    body_html += '<td style="vertical-align: middle;">N/A</td>'
+            
+            body_html += '</tr>'
+        
+        body_html += '</tbody>'
+        
+        return f'<table class="spotify-table" id="spotify-charts-table">{header_html}{body_html}</table>'
+    
+    def _measure_text_width(self, text: str, font_size_em: float) -> float:
+        """
+        Measure actual rendered width of text using WeasyPrint's layout engine.
+
+        Args:
+            text: The text to measure
+            font_size_em: Font size in em units
+
+        Returns:
+            Width in pixels
+        """
+        # Create a minimal HTML document with the text
+        # Use exact same font and styling as the actual title
+        test_html = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                * {{
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }}
+                body {{
+                    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                }}
+                .measure {{
+                    font-size: {font_size_em}em;
+                    font-weight: 700;
+                    white-space: nowrap;
+                    display: inline-block;
+                }}
+            </style>
+        </head>
+        <body>
+            <span class="measure">{html.escape(text)}</span>
+        </body>
+        </html>
+        '''
+
+        # Render the HTML to measure the element
+        doc = HTML(string=test_html).render()
+
+        # Get the first page and find the span element
+        if len(doc.pages) > 0:
+            page = doc.pages[0]
+
+            # Traverse the page box tree to find the text width
+            def find_text_width(box):
+                # Look for the span element with class 'measure'
+                if hasattr(box, 'element_tag') and box.element_tag == 'span':
+                    return box.width
+
+                # Recursively search children
+                for child in box.children:
+                    width = find_text_width(child)
+                    if width is not None:
+                        return width
+
+                return None
+
+            width = find_text_width(page._page_box)
+            if width is not None:
+                return width
+
+        # Fallback: estimate if measurement fails
+        return len(text) * 32.0
+
+    def _calculate_title_font_size(self, playlist_name: Optional[str]) -> tuple:
+        """
+        Calculate appropriate font sizes to ensure title fits within table width.
+        Only scales DOWN when text is too wide, never scales UP.
+
+        Args:
+            playlist_name: The playlist name to size
+
+        Returns:
+            Tuple of (spotify_label_size, playlist_name_size) in em units
+        """
+        if not playlist_name:
+            return (2.4, 3.2)  # Default sizes
+
+        # Container is 1200px with 20px padding on each side = 1160px available
+        # Title has NO padding (removed for alignment)
+        # Table is 100% of container width, so table width = 1160px
+        # Title must NOT exceed table width
+        base_playlist_size = 3.2
+        base_spotify_size = 2.4
+        table_width_px = 1160  # Full container available width
+
+        # Use 90% threshold for safety margin
+        # This accounts for rendering variations and ensures text stays within border
+        safety_threshold = table_width_px * 0.90
+
+        # MEASURE actual width at base font size
+        measured_width = self._measure_text_width(playlist_name, base_playlist_size)
+
+        # Apply correction factor: measurement underestimates actual rendered width
+        # PDF rendering produces significantly wider text than measurement
+        # This corrects for base font size (16px vs actual) and rendering differences
+        correction_factor = 3.5  # Further increased to ensure text stays within border
+        actual_width = measured_width * correction_factor
+
+        # Only scale DOWN if text exceeds threshold
+        # If text fits, use default sizes (don't scale up)
+        if actual_width <= safety_threshold:
+            return (base_spotify_size, base_playlist_size)
+
+        # Text is too wide - scale down to fit within threshold
+        scale_factor = safety_threshold / actual_width
+
+        # Apply scale factor to both sizes to maintain proportions
+        # Minimum of 1.2em ensures readability
+        playlist_size = max(1.2, base_playlist_size * scale_factor)
+        spotify_size = max(1.2, base_spotify_size * scale_factor)
+
+        return (spotify_size, playlist_size)
+
     def _generate_html_content(self, tracks: List[Dict], playlist_name: Optional[str] = None) -> str:
         """
-        Generate HTML content from track data (same as TableGenerator)
+        Generate HTML content from track data with enhanced formatting
 
         Args:
             tracks: List of track dictionaries
@@ -146,44 +480,37 @@ class PDFGenerator:
         Returns:
             HTML string
         """
-        import pandas as pd
+        # Calculate metrics
+        metrics = self._calculate_metrics(tracks)
 
-        # Convert to DataFrame
-        df = pd.DataFrame(tracks)
+        # Sort tracks by position (maintain rank order 1-50) instead of config sort
+        # This ensures tracks are displayed in their chart ranking order
+        tracks = sorted(
+            tracks,
+            key=lambda x: x.get('position', 999)  # Default to 999 if no position
+        )
 
-        # Select and order columns (exclude 'playlist' column)
-        columns = config.TABLE_CONFIG['include_columns']
-        available_columns = [col for col in columns if col in df.columns and col != 'playlist']
-        df = df[available_columns]
+        # Format table HTML with hyperlinks, popularity bars, etc.
+        table_html = self._format_table_html(tracks)
 
-        # Sort if configured
-        if config.TABLE_CONFIG.get('sort_by') and config.TABLE_CONFIG['sort_by'] in df.columns:
-            ascending = config.TABLE_CONFIG.get('sort_order', 'desc') == 'asc'
-            df = df.sort_values(by=config.TABLE_CONFIG['sort_by'], ascending=ascending)
-
-        # Reset index
-        df = df.reset_index(drop=True)
-        df.index = df.index + 1  # Start numbering from 1
+        # Calculate dynamic title font sizes based on playlist name length
+        spotify_size, playlist_size = self._calculate_title_font_size(playlist_name)
 
         # Load HTML template
         with open(self.template_path, 'r') as f:
-            template = Template(f.read())
+            template_content = f.read()
+            template = Template(template_content)
 
-        # Prepare data for template
-        table_html = df.to_html(
-            classes='spotify-table',
-            table_id='spotify-charts-table',
-            escape=False,
-            index=True
-        )
-
-        # Render template
+        # Render template with dynamic font sizes
         html_output = template.render(
             table_html=table_html,
             theme=config.SPOTIFY_THEME,
             generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            total_tracks=len(df),
-            playlist_name=playlist_name
+            total_tracks=len(tracks),
+            playlist_name=playlist_name,
+            metrics=metrics,
+            title_spotify_size=spotify_size,
+            title_playlist_size=playlist_size
         )
 
         return html_output

@@ -58,7 +58,7 @@ class SpotifyClient:
         Returns:
             List of track dictionaries with relevant information
         """
-        # PRIMARY METHOD: Use Selenium to scrape playlist tracks
+        # PRIMARY METHOD: Use Selenium to scrape playlist tracks (includes playlist image)
         print(f"Scraping playlist {playlist_id} using Selenium...")
         tracks = self._get_playlist_tracks_selenium(playlist_id, playlist_name)
 
@@ -66,6 +66,17 @@ class SpotifyClient:
         if self.use_api_enrichment and self.client:
             print(f"Enriching {len(tracks)} tracks with Spotify API metadata...")
             tracks = self._enrich_tracks_with_api(tracks)
+            
+            # Playlist image is already included from Selenium scraping, but try API as fallback
+            if not tracks[0].get('playlist_image') if tracks else None:
+                try:
+                    playlist = self.client.playlist(playlist_id)
+                    if playlist.get('images') and len(playlist['images']) > 0:
+                        playlist_image = playlist['images'][0]['url']
+                        for track in tracks:
+                            track['playlist_image'] = playlist_image
+                except Exception:
+                    pass  # API playlist access not available for editorial playlists
 
         return tracks
     
@@ -138,6 +149,10 @@ class SpotifyClient:
                 if not track.get('album') and api_track.get('album'):
                     track['album'] = api_track['album']['name']
 
+                # Add album URL (if not already present)
+                if not track.get('album_url') and api_track.get('album', {}).get('external_urls', {}).get('spotify'):
+                    track['album_url'] = api_track['album']['external_urls']['spotify']
+
                 if not track.get('duration_ms') and api_track.get('duration_ms'):
                     track['duration_ms'] = api_track['duration_ms']
                     track['duration'] = self._format_duration(api_track['duration_ms'])
@@ -146,8 +161,8 @@ class SpotifyClient:
                     track['popularity'] = api_track['popularity']
 
                 # Add preview URL (usually not available via scraping)
-                if api_track.get('preview_url'):
-                    track['preview_url'] = api_track['preview_url']
+                # Always set preview_url, even if None (so we can check if it exists)
+                track['preview_url'] = api_track.get('preview_url') or None
 
                 # Add album image (if not already present)
                 if not track.get('album_image') and api_track.get('album', {}).get('images'):

@@ -32,7 +32,7 @@ PLAYLIST_IDS = [
 
 # Table Configuration
 TABLE_CONFIG = {
-    'include_columns': ['track_name', 'artist', 'album', 'duration', 'popularity', 'playlist'],
+    'include_columns': ['track_name', 'album', 'duration', 'popularity', 'playlist'],  # Removed 'artist' - now displayed under track names
     'sort_by': 'popularity',
     'sort_order': 'desc',
     'max_tracks_per_playlist': None,  # None = all tracks
@@ -45,7 +45,10 @@ SPOTIFY_THEME = {
     'primary': '#1DB954',
     'text_primary': '#FFFFFF',
     'text_secondary': '#B3B3B3',
+    'text_track': '#E0E0E0',      # Track name color (lighter than secondary)
+    'text_artist': '#888888',     # Artist name color (darker than secondary)
     'border': '#282828',
+    'bar_background': '#2a2a2a',  # Popularity bar background
 }
 
 # Report Generation Configuration

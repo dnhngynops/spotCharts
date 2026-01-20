@@ -8,6 +8,8 @@ playlists that are not available through the public Spotify Web API.
 import re
 import time
 import logging
+import base64
+import os
 from datetime import datetime
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -229,12 +231,55 @@ class SeleniumSpotifyClient:
                     expected_track_count = int(match.group(1))
                     break
 
+        # Extract playlist cover image via screenshot (more reliable than URL extraction)
+        playlist_image_base64 = None
+        try:
+            # Wait a moment for page to fully render
+            time.sleep(1)
+            
+            # Find the playlist cover photo container
+            try:
+                # Try primary selector for cover photo container
+                cover_container = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'div[data-testid="entityCoverPhoto"]'))
+                )
+                # Take screenshot of the cover container
+                screenshot_bytes = cover_container.screenshot_as_png
+                if screenshot_bytes:
+                    # Convert to base64 data URI for embedding in HTML
+                    playlist_image_base64 = f"data:image/png;base64,{base64.b64encode(screenshot_bytes).decode('utf-8')}"
+                    self.logger.debug(f"Screenshot taken of playlist cover image ({len(screenshot_bytes)} bytes)")
+            except Exception as e:
+                self.logger.debug(f"Could not find cover container: {e}")
+                # Fallback: try alternative selectors
+                try:
+                    cover_selectors = [
+                        'div[data-testid="entityCoverPhoto"]',
+                        'div[data-testid="cover-art"]',
+                        'img[data-testid="entityCoverPhoto"]',
+                    ]
+                    for selector in cover_selectors:
+                        try:
+                            element = driver.find_element(By.CSS_SELECTOR, selector)
+                            screenshot_bytes = element.screenshot_as_png
+                            if screenshot_bytes:
+                                playlist_image_base64 = f"data:image/png;base64,{base64.b64encode(screenshot_bytes).decode('utf-8')}"
+                                self.logger.debug(f"Screenshot taken via fallback selector {selector}")
+                                break
+                        except Exception:
+                            continue
+                except Exception:
+                    pass
+        except Exception as e:
+            self.logger.debug(f"Could not screenshot playlist image: {e}")
+
         return {
             "playlist_id": playlist_id,
             "playlist_name": name or playlist_id,
             "description": description,
             "spotify_url": playlist_url,
             "expected_track_count": expected_track_count,
+            "playlist_image": playlist_image_base64,  # Base64 data URI from screenshot
         }
 
     def _locate_scroll_container(self, driver):
@@ -694,7 +739,7 @@ class SeleniumSpotifyClient:
             # For backwards compatibility, also store as comma-separated string
             artist_names = [a["name"] for a in artists]
 
-            # Album name
+            # Album name and URL
             album_element = self._first_element(
                 row,
                 [
@@ -703,6 +748,16 @@ class SeleniumSpotifyClient:
                 ],
             )
             album_name = album_element.text.strip() if album_element else None
+            
+            # Extract album URL if album element is a link
+            album_url = None
+            if album_element:
+                try:
+                    href = album_element.get_attribute("href")
+                    if href and "/album/" in href:
+                        album_url = href.split("?")[0]  # Remove query parameters
+                except Exception:
+                    pass
 
             # Explicit flag
             explicit = bool(row.find_elements(By.CSS_SELECTOR, 'span[aria-label="Explicit"]'))
@@ -714,6 +769,7 @@ class SeleniumSpotifyClient:
                 "artist": ", ".join(artist_names),  # String for backwards compatibility
                 "artists": artists,  # List with URLs for hyperlinking
                 "album": album_name,
+                "album_url": album_url,  # Album URL for hyperlinking
                 "duration_ms": None,  # Not available via scraping
                 "duration": None,
                 "popularity": None,  # Not available via scraping
@@ -776,10 +832,15 @@ class SeleniumSpotifyClient:
     ) -> List[Dict]:
         """Convert scraped tracks to standard format matching API client"""
         playlist_name = metadata.get("playlist_name", "Unknown Playlist")
+        playlist_image = metadata.get("playlist_image")
 
         for track in raw_tracks:
             # Add playlist name
             track["playlist"] = playlist_name
+            
+            # Add playlist image to all tracks
+            if playlist_image:
+                track["playlist_image"] = playlist_image
 
             # Format duration if needed (not available from scraping)
             if not track.get("duration"):

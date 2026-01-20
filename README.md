@@ -12,9 +12,16 @@ Automated system to fetch tracks from 4 editorial Spotify playlists, generate fo
 - **Robust & Reliable**: Multiple fallback strategies prevent collection failures
 - **Headless Browser**: Runs invisibly in background with performance optimizations
 
-### **Report Generation (v1.4.0)**
-- **Separate Playlist PDFs**: Each playlist generates its own PDF report with playlist name as title
+### **Report Generation (v1.6.0)**
+- **Separate Playlist PDFs**: Each playlist generates its own PDF report with "Spotify [playlist name]" title format
 - **Single Continuous Page**: PDFs are rendered as one scrollable page with no blank space
+- **Enhanced Visual Design**: 
+  - Popularity bars with green visualization
+  - Album images next to track names
+  - Hyperlinked track, artist, and album names
+  - Clock icon (🕐) for duration column
+  - Bold rank numbers and optimized spacing
+- **Analytics Metrics**: Displays total tracks and most frequent artists under title
 - **Multi-Format Output**: Generate HTML and/or PDF reports
 - **Configurable**: Choose which formats to generate (HTML, PDF, or both)
 - **Spotify Theming**: Beautiful dark mode styling maintained across all formats
