@@ -217,6 +217,21 @@
             white-space: normal;
         }
 
+        /* Explicit content badge - small tag before artist names */
+        .explicit-badge {
+            display: inline-block;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: {{ theme.text_artist }};
+            font-size: 0.65em;
+            font-weight: 600;
+            padding: 1px 4px;
+            margin-right: 6px;
+            border-radius: 2px;
+            vertical-align: middle;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
         .album-image-container {
             position: relative;
             width: 50px;

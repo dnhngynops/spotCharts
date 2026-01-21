@@ -24,7 +24,9 @@ All modules here are placeholders for future A&R analytics:
 - **discovery_engine.py**: A&R discovery features (emerging artists, breakout tracks)
 
 #### **Reporting Modules** (`src/reporting/`)
-- **table_generator.py**: Creates formatted HTML/CSV tables
+- **dashboard_generator.py**: Generates HTML analytics dashboard with cross-playlist insights
+- **table_generator.py**: Creates formatted HTML/CSV tables (used for PDFs)
+- **pdf_generator.py**: PDF report generation using WeasyPrint
 - **report_generator.py**: Comprehensive report generation (placeholder)
 
 #### **Utilities** (`src/utils/`)
@@ -103,7 +105,9 @@ python main.py
 ### 4. Verify Output
 
 Check for:
-- Generated HTML file in project root
+- Generated HTML dashboard in `output/` directory: `spotify_charts_dashboard_YYYYMMDD_HHMMSS.html`
+- Generated PDF files in `output/` directory (one per playlist)
+- Dashboard deployed to GitHub Pages (if workflow enabled)
 - Upload confirmation to Google Drive
 - Email sent to configured recipients
 

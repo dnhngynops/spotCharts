@@ -12,6 +12,10 @@ on:
 jobs:
   generate-reports:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Changed to write to allow committing dashboard to branch
+      pages: write
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -124,3 +128,71 @@ jobs:
           echo "✅ Spotify Charts automation completed successfully!"
           echo "Reports generated and uploaded to Google Drive"
           echo "Email notification sent"
+
+      - name: Prepare dashboard for GitHub Pages
+        if: success()
+        run: |
+          # Create docs directory if it doesn't exist
+          mkdir -p docs
+          
+          # List all HTML files in output directory for debugging
+          echo "Listing files in output directory:"
+          ls -la output/ 2>/dev/null || echo "Output directory does not exist"
+          
+          # Find the latest dashboard HTML file
+          echo "Searching for dashboard files..."
+          LATEST_DASHBOARD=$(ls -t output/spotify_charts_dashboard_*.html 2>/dev/null | head -1)
+          
+          if [ -f "$LATEST_DASHBOARD" ]; then
+            # Copy dashboard to docs/index.html for GitHub Pages
+            cp "$LATEST_DASHBOARD" docs/index.html
+            echo "✅ Dashboard copied to docs/index.html"
+            echo "Dashboard file: $LATEST_DASHBOARD"
+            echo "File size: $(du -h docs/index.html | cut -f1)"
+            
+            # Verify the copy was successful
+            if [ -f "docs/index.html" ]; then
+              echo "✅ Verification: docs/index.html exists"
+              echo "First 100 characters: $(head -c 100 docs/index.html)"
+            else
+              echo "❌ ERROR: Copy failed - docs/index.html does not exist"
+              exit 1
+            fi
+          else
+            echo "❌ ERROR: No dashboard HTML file found in output/"
+            echo "Expected pattern: output/spotify_charts_dashboard_*.html"
+            echo "This step will fail to ensure deployment doesn't proceed without dashboard"
+            exit 1
+          fi
+
+      - name: Commit dashboard to repository (for branch-based deployment)
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html
+          if git diff --staged --quiet; then
+            echo "No changes to commit (dashboard already up to date)"
+          else
+            git commit -m "Update dashboard: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+            git push origin main
+            echo "✅ Dashboard committed and pushed to main branch"
+          fi
+
+      - name: Setup Pages
+        if: success()
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        if: success()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+
+      - name: Deploy to GitHub Pages
+        if: success()
+        id: deployment
+        uses: actions/deploy-pages@v4
+        environment:
+          name: github-pages
+          url: ${{ steps.deployment.outputs.page_url }}

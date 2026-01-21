@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from src.integrations.spotify_client import SpotifyClient
 from src.reporting.table_generator import TableGenerator
+from src.reporting.dashboard_generator import DashboardGenerator
 from src.integrations.google_drive_client import GoogleDriveClient
 from src.integrations.email_client import EmailClient
 from src.core import config
@@ -49,13 +50,15 @@ def main():
 
         print(f"   Grouped tracks into {len(tracks_by_playlist)} playlists")
 
-        # Generate HTML if configured (one combined file)
+        # Generate HTML dashboard with cross-playlist analytics
         if config.REPORT_CONFIG['formats']['html']:
-            print("   Generating HTML report...")
-            html_filename = f'spotify_charts_{timestamp}.html'
-            html_file_path = table_generator.save_html_file(tracks, html_filename)
+            print("   Generating HTML dashboard with analytics...")
+            dashboard_generator = DashboardGenerator()
+            html_filename = f'spotify_charts_dashboard_{timestamp}.html'
+            html_file_path = os.path.join(output_dir, html_filename)
+            dashboard_generator.generate_dashboard(tracks, html_file_path)
             generated_files.append(html_file_path)
-            print(f"   ✓ HTML report saved to: {html_file_path}")
+            print(f"   ✓ HTML dashboard saved to: {html_file_path}")
 
         # Generate separate PDF for each playlist if configured
         if config.REPORT_CONFIG['formats']['pdf']:

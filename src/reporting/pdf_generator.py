@@ -265,6 +265,7 @@ class PDFGenerator:
                 
                 # Get artist names for display under track name
                 artist_names_html = ''
+                is_explicit = track.get('explicit', False)
                 artists = track.get('artists', [])
                 if isinstance(artists, list) and len(artists) > 0:
                     artist_links = []
@@ -282,6 +283,10 @@ class PDFGenerator:
                 elif track.get('artist'):
                     # Fallback to string format
                     artist_names_html = html.escape(str(track.get('artist', '')))
+
+                # Prepend explicit badge if track is explicit
+                if is_explicit and artist_names_html:
+                    artist_names_html = f'<span class="explicit-badge">E</span>{artist_names_html}'
                 
                 # Build track display with album image and track info
                 if album_image_url:

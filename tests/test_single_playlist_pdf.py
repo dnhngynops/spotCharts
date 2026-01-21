@@ -2,7 +2,7 @@
 Test PDF generation with real playlist data
 
 This script extracts tracks from a single Spotify playlist
-and generates both HTML and PDF reports to verify the complete pipeline.
+and generates a PDF report to verify the PDF generation pipeline.
 """
 import os
 from datetime import datetime
@@ -58,14 +58,6 @@ def test_single_playlist_pdf():
         output_dir = './test_output'
         os.makedirs(output_dir, exist_ok=True)
 
-        # Generate HTML
-        print("   📄 Generating HTML report...")
-        html_filename = f'{output_dir}/test_playlist_{timestamp}.html'
-        html_path = table_generator.save_html_file(tracks, html_filename)
-        html_size = os.path.getsize(html_path) / 1024  # KB
-        print(f"   ✓ HTML generated: {html_path}")
-        print(f"     Size: {html_size:.2f} KB")
-
         # Generate PDF
         print("\n   📑 Generating PDF report...")
         pdf_filename = f'{output_dir}/test_playlist_{timestamp}.pdf'
@@ -84,10 +76,8 @@ def test_single_playlist_pdf():
         print(f"\n📊 Summary:")
         print(f"   Playlist: {playlist_name}")
         print(f"   Tracks: {len(tracks)}")
-        print(f"   HTML: {html_path} ({html_size:.2f} KB)")
         print(f"   PDF:  {pdf_path} ({pdf_size:.2f} KB)")
-        print(f"\n💡 You can now open these files to verify formatting:")
-        print(f"   open {html_path}")
+        print(f"\n💡 You can now open the PDF to verify formatting:")
         print(f"   open {pdf_path}")
 
         return True

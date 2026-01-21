@@ -12,17 +12,25 @@ Automated system to fetch tracks from 4 editorial Spotify playlists, generate fo
 - **Robust & Reliable**: Multiple fallback strategies prevent collection failures
 - **Headless Browser**: Runs invisibly in background with performance optimizations
 
-### **Report Generation (v1.6.0)**
+### **Report Generation (v1.8.0)**
+- **Interactive HTML Dashboard**: Comprehensive analytics dashboard with cross-playlist insights
+  - Summary statistics (total tracks, unique tracks, average popularity, explicit content)
+  - Top artists analysis across all charts (with track counts and chart appearances)
+  - Chart overlap analysis (tracks appearing on multiple playlists)
+  - USA vs Global comparison for Songs playlists
+  - Popularity distribution by playlist
+  - Explicit content statistics with visual bars
+  - Multi-playlist artist identification
+  - Full track listings for each playlist (50 tracks each)
+  - **GitHub Pages Hosting**: Automatically deployed to public URL after each run
 - **Separate Playlist PDFs**: Each playlist generates its own PDF report with "Spotify [playlist name]" title format
-- **Single Continuous Page**: PDFs are rendered as one scrollable page with no blank space
-- **Enhanced Visual Design**: 
+  - Single continuous page (no pagination)
   - Popularity bars with green visualization
   - Album images next to track names
   - Hyperlinked track, artist, and album names
   - Clock icon (🕐) for duration column
   - Bold rank numbers and optimized spacing
-- **Analytics Metrics**: Displays total tracks and most frequent artists under title
-- **Multi-Format Output**: Generate HTML and/or PDF reports
+- **Multi-Format Output**: Generate HTML dashboard and/or PDF reports
 - **Configurable**: Choose which formats to generate (HTML, PDF, or both)
 - **Spotify Theming**: Beautiful dark mode styling maintained across all formats
 - **Professional PDFs**: Print-ready reports using WeasyPrint with precise content measurement
@@ -33,9 +41,13 @@ Automated system to fetch tracks from 4 editorial Spotify playlists, generate fo
 - Chart positions (1-50), explicit flags
 - Playlist metadata and timestamps
 
-### **Automation & Delivery (v1.5.0)**
+### **Automation & Delivery (v1.8.0)**
 - **Fully Remote**: Runs on GitHub Actions - no need to keep your computer on
 - **Custom Scheduling**: Configurable schedule (default: Every Thursday at 11 PM PST)
+- **GitHub Pages Deployment**: Dashboard automatically deployed to public URL after each run
+  - Accessible at: `https://[username].github.io/[repository-name]/`
+  - Always shows the latest dashboard data
+  - Zero manual intervention required
 - **Date-Based Organization**: Reports automatically organized by date in Google Drive
 - **Cloud Upload**: Automatic upload to Google Drive with folder creation
 - **Email Notifications**: Sends report attachments to configured recipients
@@ -109,11 +121,13 @@ GENERATE_PDF=true    # Generate PDF reports (true/false) - always single continu
 OUTPUT_DIR=./output  # Directory for generated reports
 ```
 
-**PDF Generation Notes:**
-- PDFs are always generated as single continuous pages (no multi-page option)
-- Each playlist gets its own PDF file (e.g., `Top_Songs_-_USA_20260111.pdf`)
-- HTML generates one combined file with all playlists
-- PDFs are auto-sized to fit content exactly (no excessive blank space)
+**Report Generation Notes:**
+- **HTML Dashboard**: Generates comprehensive analytics dashboard with cross-playlist insights
+  - File: `spotify_charts_dashboard_YYYYMMDD_HHMMSS.html`
+  - Automatically deployed to GitHub Pages after each run
+- **PDF Reports**: Each playlist gets its own PDF file (e.g., `Top_Songs_-_USA_20260111.pdf`)
+  - Always generated as single continuous pages (no multi-page option)
+  - Auto-sized to fit content exactly (no excessive blank space)
 
 ## Usage
 
@@ -187,8 +201,9 @@ spotifyCharts/
 │   │   └── discovery_engine.py      # A&R discovery features
 │   │
 │   ├── reporting/                   # Report generation
-│   │   ├── table_generator.py       # Table generation and formatting
-│   │   ├── pdf_generator.py         # PDF report generation (v1.3.0)
+│   │   ├── table_generator.py       # Table generation and formatting (for PDFs)
+│   │   ├── dashboard_generator.py   # HTML dashboard with analytics
+│   │   ├── pdf_generator.py         # PDF report generation
 │   │   └── report_generator.py      # Comprehensive reports (placeholder)
 │   │
 │   └── utils/                       # Utility functions
@@ -205,7 +220,8 @@ spotifyCharts/
 │   └── *.py                         # Various unit and debug tests
 │
 ├── templates/                       # HTML templates
-│   └── table_template.html
+│   ├── table_template.html          # Template for PDF reports
+│   └── dashboard_template.html      # Template for HTML dashboard
 │
 ├── docs/                            # Documentation
 │   ├── SETUP.md                     # Detailed setup guide
@@ -224,6 +240,24 @@ spotifyCharts/
 ```
 
 ## Recent Updates
+
+**v1.8.0 HTML Analytics Dashboard & GitHub Pages (Jan 2026):**
+- **Interactive Dashboard**: New comprehensive HTML dashboard with cross-playlist analytics
+  - Summary statistics cards (total tracks, playlists, unique tracks, avg popularity, explicit count)
+  - Top artists analysis (top 15 with track counts and chart appearances)
+  - Chart overlap detection (tracks appearing on multiple playlists)
+  - USA vs Global Songs comparison with overlap statistics
+  - Popularity distribution analysis by playlist
+  - Explicit content statistics with visual progress bars
+  - Multi-playlist artists (artists on 3+ charts)
+  - Complete track listings for each playlist with album art and links
+- **GitHub Pages Integration**: Automatic deployment of dashboard to public URL
+  - Dashboard automatically updates after each workflow run
+  - Accessible at: `https://[username].github.io/[repository-name]/`
+  - Zero manual intervention required
+- **New Module**: `DashboardGenerator` for comprehensive analytics calculation
+- **Updated Main Pipeline**: Now uses `DashboardGenerator` instead of simple HTML table
+- **Template**: New `dashboard_template.html` with responsive design and Spotify theming
 
 **v1.7.1 Cross-Platform PDF Rendering Fix (Jan 2026):**
 - **Font Weight Fix**: Track names now use font-weight 600 (was 500) for consistent rendering on Ubuntu/GitHub Actions
@@ -300,11 +334,10 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for planned features and development time
 - ✅ Playlist metadata
 
 ### **Known Limitations**
-- ⚠️ Album images not collected (Selenium - disabled for performance)
-- ⚠️ Track duration not available (Selenium limitation)
-- ⚠️ Popularity scores not available (Selenium limitation)
+- ⚠️ Album images not collected via Selenium (disabled for performance) - but added via API enrichment
+- ⚠️ Track duration and popularity not available via Selenium - but added via API enrichment
 
-*These limitations only affect Selenium-scraped editorial playlists. API-accessible playlists would have complete data.*
+*Selenium provides basic track data, and API enrichment adds metadata like popularity, duration, album images, and preview URLs. All data is available in the final reports.*
 
 ---
 

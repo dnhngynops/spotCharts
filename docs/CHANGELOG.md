@@ -4,6 +4,80 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [1.8.0] - 2026-01-21
+
+### Added - HTML Analytics Dashboard & GitHub Pages Integration
+
+- **Interactive Analytics Dashboard**: New comprehensive HTML dashboard with cross-playlist insights
+  - **Summary Statistics Cards**: Total tracks, playlists, unique tracks, average popularity, explicit count
+  - **Top Artists Analysis**: Top 15 artists across all charts with track counts and chart appearances
+  - **Chart Overlap Detection**: Identifies tracks appearing on multiple playlists with positions
+  - **USA vs Global Comparison**: Songs playlist comparison showing overlap statistics
+  - **Popularity Distribution**: Average, min, max popularity by playlist with top 10 tracks
+  - **Explicit Content Statistics**: Percentage and counts by playlist with visual progress bars
+  - **Multi-Playlist Artists**: Identifies artists appearing on 3+ charts
+  - **Full Track Listings**: Complete track tables for each playlist (50 tracks each) with album art, links, popularity bars
+  - **Responsive Design**: Mobile-friendly layout with Spotify dark theme
+
+- **GitHub Pages Deployment**: Automatic deployment of dashboard to public URL
+  - Dashboard automatically deployed after each successful workflow run
+  - Accessible at: `https://[username].github.io/[repository-name]/`
+  - Uses GitHub Actions Pages deployment (official method)
+  - Zero manual intervention required
+  - Placeholder page included to prevent 404 errors
+
+- **New Module**: `DashboardGenerator` (`src/reporting/dashboard_generator.py`)
+  - Comprehensive analytics calculation engine
+  - Cross-playlist data aggregation and analysis
+  - Track overlap and artist frequency analysis
+  - Popularity and explicit content statistics
+  - Template rendering with Jinja2
+
+- **New Template**: `dashboard_template.html`
+  - Responsive dashboard layout
+  - Summary cards, analytics sections, and track tables
+  - Spotify theming with dark mode
+  - Interactive elements (hover effects, hyperlinks)
+
+### Changed
+
+- **Main Pipeline**: HTML generation now uses `DashboardGenerator` instead of simple table
+  - Old: `TableGenerator.save_html_file()` (simple combined table)
+  - New: `DashboardGenerator.generate_dashboard()` (analytics dashboard)
+  - PDF generation unchanged (still uses `TableGenerator`)
+
+- **Workflow Enhancement**: Added GitHub Pages deployment steps
+  - Dashboard preparation step (copies to `docs/index.html`)
+  - GitHub Actions Pages deployment (official method)
+  - Automatic deployment after successful runs
+
+- **Test File**: Updated `test_single_playlist_pdf.py` to only test PDF generation (removed HTML generation)
+
+### Technical Changes
+
+- **Main Script** (`main.py`):
+  - Now imports and uses `DashboardGenerator`
+  - Filename format: `spotify_charts_dashboard_YYYYMMDD_HHMMSS.html`
+  - Dashboard saved to `output/` directory, then copied to `docs/` for Pages
+
+- **Workflow** (`.github/workflows/spotify-charts-automation.yml`):
+  - Added "Prepare dashboard for GitHub Pages" step
+  - Added "Setup Pages", "Upload artifact", and "Deploy to GitHub Pages" steps
+  - Added workflow-level permissions for Pages deployment
+
+- **Git Configuration** (`.gitignore`):
+  - Added exception for `docs/index.html` to allow GitHub Pages deployment
+
+### Benefits
+
+- Rich analytics insights across all playlists in one dashboard
+- Public access to dashboard via GitHub Pages URL
+- Automatic updates after each workflow run
+- Professional presentation suitable for sharing with stakeholders
+- A&R-friendly insights (top artists, chart overlap, trending tracks)
+
+---
+
 ## [1.7.1] - 2026-01-21
 
 ### Fixed - Cross-Platform PDF Rendering Consistency

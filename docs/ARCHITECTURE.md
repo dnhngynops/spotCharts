@@ -52,11 +52,19 @@ The system follows a **Selenium-Primary + API Enrichment** architecture:
 │  STEP 2: Report Generation                                      │
 └─────────────────────────────────────────────────────────────────┘
         │
-        ├── HTML Report (Combined) ────────────────────────┐
-        │   ├── All playlists in one HTML file             │
-        │   ├── Spotify dark theme styling                 │
-        │   ├── Clickable links for tracks & artists       │
-        │   └── File: spotify_charts_YYYYMMDD_HHMMSS.html  │
+        ├── HTML Dashboard (Analytics) ────────────────────────┐
+        │   ├── Cross-playlist analytics and insights          │
+        │   ├── Summary statistics (cards)                     │
+        │   ├── Top artists analysis                           │
+        │   ├── Chart overlap detection                        │
+        │   ├── USA vs Global comparison                       │
+        │   ├── Popularity distribution by playlist            │
+        │   ├── Explicit content statistics                    │
+        │   ├── Multi-playlist artist identification           │
+        │   ├── Full track listings per playlist               │
+        │   ├── Spotify dark theme styling                     │
+        │   ├── File: spotify_charts_dashboard_YYYYMMDD_HHMMSS.html │
+        │   └── Deployed to GitHub Pages automatically         │
         │                                                     │
         └── PDF Reports (Separate) ────────────────────────┐
             ├── One PDF per playlist                        │
@@ -73,19 +81,28 @@ The system follows a **Selenium-Primary + API Enrichment** architecture:
             └── Files: PlaylistName_YYYYMMDD_HHMMSS.pdf     │
 
 ┌─────────────────────────────────────────────────────────────────┐
-│  STEP 3: Google Drive Upload                                    │
+│  STEP 3: GitHub Pages Deployment                                │
+└─────────────────────────────────────────────────────────────────┘
+        │
+        ├── Copy dashboard to docs/index.html
+        ├── Upload as Pages artifact
+        ├── Deploy to GitHub Pages environment
+        └── Dashboard accessible at public URL
+
+┌─────────────────────────────────────────────────────────────────┐
+│  STEP 4: Google Drive Upload                                    │
 └─────────────────────────────────────────────────────────────────┘
         │
         ├── Create date folder (YYYY-MM-DD)
-        ├── Upload HTML report
+        ├── Upload HTML dashboard
         ├── Upload all PDF reports
         └── Returns file IDs for tracking
 
 ┌─────────────────────────────────────────────────────────────────┐
-│  STEP 4: Email Notification                                     │
+│  STEP 5: Email Notification                                     │
 └─────────────────────────────────────────────────────────────────┘
         │
-        ├── Attach HTML report
+        ├── Attach HTML dashboard
         ├── Attach all PDF reports
         ├── Send summary email with stats
         └── Complete!
@@ -183,6 +200,32 @@ def get_playlist_tracks(playlist_id, playlist_name):
 - 100% accuracy (always collects exactly 50 tracks)
 
 ---
+
+### DashboardGenerator (`src/reporting/dashboard_generator.py`)
+
+**Purpose**: Generate comprehensive HTML dashboard with cross-playlist analytics
+
+**Key Methods**:
+- `generate_dashboard()`: Main entry point - generates complete dashboard HTML
+- `_calculate_analytics()`: Orchestrates all analytics calculations
+- `_analyze_artists()`: Artist frequency and multi-playlist presence
+- `_analyze_overlap()`: Track overlap between charts
+- `_analyze_popularity()`: Popularity distribution analysis
+- `_analyze_explicit()`: Explicit content distribution
+- `_analyze_playlists()`: Per-playlist statistics
+- `_format_track_row()`: Formats individual tracks for table display
+
+**Analytics Features**:
+- Summary statistics (total tracks, playlists, unique tracks, avg popularity, explicit count)
+- Top 15 artists across all charts with track counts and chart appearances
+- Multi-playlist artists (artists appearing on 3+ charts)
+- Chart overlap (tracks appearing on multiple playlists)
+- USA vs Global Songs comparison
+- Popularity distribution by playlist
+- Explicit content statistics with percentages
+- Full track listings for each playlist
+
+**Output**: Interactive HTML dashboard deployed to GitHub Pages
 
 ### PDFGenerator (`src/reporting/pdf_generator.py`)
 
@@ -360,6 +403,6 @@ python main.py
 
 ---
 
-**Last Updated**: 2026-01-12
-**Version**: 1.6.0
-**Architecture**: Selenium-Primary + API Enrichment
+**Last Updated**: 2026-01-21
+**Version**: 1.8.0
+**Architecture**: Selenium-Primary + API Enrichment + Analytics Dashboard

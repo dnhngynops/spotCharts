@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Charts Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: {{ theme.background }};
+            color: {{ theme.text_secondary }};
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .dashboard-header {
+            text-align: center;
+            padding: 40px 20px;
+            margin-bottom: 30px;
+            background: linear-gradient(180deg, #1a4a2e 0%, #194029 20%, #181818 100%);
+            border-radius: 12px;
+        }
+
+        .dashboard-header h1 {
+            font-size: 2.5em;
+            color: {{ theme.text_secondary }};
+            margin-bottom: 10px;
+        }
+
+        .dashboard-header h1 .spotify-green {
+            color: {{ theme.primary }};
+        }
+
+        .dashboard-header .subtitle {
+            font-size: 1.1em;
+            color: {{ theme.text_artist }};
+        }
+
+        .dashboard-header .generated-at {
+            font-size: 0.9em;
+            color: {{ theme.text_artist }};
+            margin-top: 10px;
+        }
+
+        /* Summary Cards */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .summary-card {
+            background: {{ theme.surface }};
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .summary-card .value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: {{ theme.primary }};
+        }
+
+        .summary-card .label {
+            font-size: 0.9em;
+            color: {{ theme.text_artist }};
+            margin-top: 5px;
+        }
+
+        /* Section styling */
+        .section {
+            background: {{ theme.surface }};
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: {{ theme.text_secondary }};
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid {{ theme.primary }};
+        }
+
+        /* Analytics Grid */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        /* Top Artists List */
+        .artist-list {
+            list-style: none;
+        }
+
+        .artist-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .artist-item:last-child {
+            border-bottom: none;
+        }
+
+        .artist-rank {
+            width: 30px;
+            font-weight: 600;
+            color: {{ theme.text_artist }};
+        }
+
+        .artist-name {
+            flex: 1;
+            color: {{ theme.text_track }};
+        }
+
+        .artist-name a {
+            color: {{ theme.text_track }};
+            text-decoration: none;
+        }
+
+        .artist-name a:hover {
+            color: {{ theme.primary }};
+        }
+
+        .artist-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85em;
+            color: {{ theme.text_artist }};
+        }
+
+        .stat-badge {
+            background: rgba(29, 185, 84, 0.2);
+            color: {{ theme.primary }};
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.85em;
+        }
+
+        /* Chart Overlap */
+        .overlap-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .overlap-stat {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+
+        .overlap-stat .number {
+            font-size: 2em;
+            font-weight: 700;
+            color: {{ theme.primary }};
+        }
+
+        .overlap-stat .label {
+            font-size: 0.85em;
+            color: {{ theme.text_artist }};
+        }
+
+        /* Overlap tracks list */
+        .overlap-track {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .overlap-track img {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            margin-right: 12px;
+        }
+
+        .overlap-track-info {
+            flex: 1;
+        }
+
+        .overlap-track-name {
+            color: {{ theme.text_track }};
+        }
+
+        .overlap-track-name a {
+            color: {{ theme.text_track }};
+            text-decoration: none;
+        }
+
+        .overlap-track-artist {
+            font-size: 0.85em;
+            color: {{ theme.text_artist }};
+        }
+
+        .overlap-charts {
+            font-size: 0.8em;
+            color: {{ theme.text_artist }};
+        }
+
+        .chart-tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-right: 5px;
+            margin-top: 3px;
+        }
+
+        /* Popularity Stats */
+        .popularity-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .popularity-card {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .popularity-card .playlist-name {
+            font-size: 0.9em;
+            color: {{ theme.text_track }};
+            margin-bottom: 8px;
+        }
+
+        .popularity-card .avg-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: {{ theme.primary }};
+        }
+
+        .popularity-card .range {
+            font-size: 0.8em;
+            color: {{ theme.text_artist }};
+        }
+
+        /* Explicit Stats */
+        .explicit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .explicit-card {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .explicit-card .playlist-name {
+            font-size: 0.9em;
+            color: {{ theme.text_track }};
+            margin-bottom: 8px;
+        }
+
+        .explicit-bar-container {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .explicit-bar {
+            height: 100%;
+            background: #e74c3c;
+            border-radius: 4px;
+        }
+
+        .explicit-card .percentage {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: {{ theme.text_secondary }};
+        }
+
+        /* Playlist Tables */
+        .playlist-section {
+            margin-bottom: 40px;
+        }
+
+        .playlist-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .playlist-title {
+            font-size: 1.3em;
+            color: {{ theme.text_secondary }};
+        }
+
+        .playlist-meta {
+            font-size: 0.9em;
+            color: {{ theme.text_artist }};
+        }
+
+        /* Data Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 12px 10px;
+            color: {{ theme.text_artist }};
+            font-weight: 600;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .data-table td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: middle;
+        }
+
+        .data-table tr:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .position-cell {
+            width: 40px;
+            text-align: center;
+            font-weight: 600;
+            color: {{ theme.text_artist }};
+        }
+
+        .track-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .album-thumb {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+
+        .track-details {
+            flex: 1;
+        }
+
+        .track-name {
+            color: {{ theme.text_track }};
+            font-weight: 500;
+        }
+
+        .track-name a {
+            color: {{ theme.text_track }};
+            text-decoration: none;
+        }
+
+        .track-name a:hover {
+            color: {{ theme.primary }};
+        }
+
+        .artist-name {
+            font-size: 0.85em;
+            color: {{ theme.text_artist }};
+        }
+
+        .artist-name a {
+            color: {{ theme.text_artist }};
+            text-decoration: none;
+        }
+
+        .duration-cell {
+            width: 60px;
+            text-align: center;
+            color: {{ theme.text_artist }};
+        }
+
+        .popularity-cell {
+            width: 120px;
+        }
+
+        .pop-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .pop-value {
+            width: 25px;
+            font-size: 0.85em;
+            color: {{ theme.text_artist }};
+        }
+
+        .pop-bar-bg {
+            flex: 1;
+            height: 6px;
+            background: {{ theme.bar_background }};
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .pop-bar {
+            height: 100%;
+            background: {{ theme.primary }};
+            border-radius: 3px;
+        }
+
+        /* Explicit Badge */
+        .explicit-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: {{ theme.text_artist }};
+            font-size: 0.7em;
+            font-weight: 600;
+            padding: 1px 4px;
+            margin-right: 5px;
+            border-radius: 2px;
+            vertical-align: middle;
+        }
+
+        /* Footer */
+        .dashboard-footer {
+            text-align: center;
+            padding: 30px;
+            color: {{ theme.text_artist }};
+            font-size: 0.9em;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .analytics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .overlap-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .dashboard-header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <h1><span class="spotify-green">Spotify</span> Charts Dashboard</h1>
+            <p class="subtitle">Cross-Playlist Analytics &amp; Insights</p>
+            <p class="generated-at">Generated on {{ generated_at }}</p>
+        </header>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="value">{{ analytics.summary.total_tracks }}</div>
+                <div class="label">Total Tracks</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ analytics.summary.total_playlists }}</div>
+                <div class="label">Playlists</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ analytics.summary.unique_tracks }}</div>
+                <div class="label">Unique Tracks</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ "%.1f"|format(analytics.popularity_stats.overall.avg) }}</div>
+                <div class="label">Avg Popularity</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">{{ analytics.explicit_stats.total_explicit }}</div>
+                <div class="label">Explicit Tracks</div>
+            </div>
+        </div>
+
+        <!-- Analytics Grid -->
+        <div class="analytics-grid">
+            <!-- Top Artists -->
+            <div class="section">
+                <h2 class="section-title">Top Artists (All Charts)</h2>
+                <ul class="artist-list">
+                    {% for artist in analytics.top_artists[:10] %}
+                    <li class="artist-item">
+                        <span class="artist-rank">{{ loop.index }}</span>
+                        <span class="artist-name">
+                            {% if artist.url %}
+                            <a href="{{ artist.url }}" target="_blank">{{ artist.name }}</a>
+                            {% else %}
+                            {{ artist.name }}
+                            {% endif %}
+                        </span>
+                        <span class="artist-stats">
+                            <span class="stat-badge">{{ artist.count }} tracks</span>
+                            <span>{{ artist.playlists }} charts</span>
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Chart Overlap -->
+            <div class="section">
+                <h2 class="section-title">USA vs Global (Songs)</h2>
+                <div class="overlap-stats">
+                    <div class="overlap-stat">
+                        <div class="number">{{ analytics.chart_overlap.usa_global_comparison.usa_only }}</div>
+                        <div class="label">USA Only</div>
+                    </div>
+                    <div class="overlap-stat">
+                        <div class="number">{{ analytics.chart_overlap.usa_global_comparison.both }}</div>
+                        <div class="label">Both Charts</div>
+                    </div>
+                    <div class="overlap-stat">
+                        <div class="number">{{ analytics.chart_overlap.usa_global_comparison.global_only }}</div>
+                        <div class="label">Global Only</div>
+                    </div>
+                </div>
+
+                <h3 style="color: {{ theme.text_secondary }}; font-size: 1em; margin: 20px 0 15px;">Tracks on Multiple Charts</h3>
+                {% for track in analytics.chart_overlap.multi_chart_tracks[:8] %}
+                <div class="overlap-track">
+                    {% if track.album_image %}
+                    <img src="{{ track.album_image }}" alt="">
+                    {% endif %}
+                    <div class="overlap-track-info">
+                        <div class="overlap-track-name">
+                            {% if track.spotify_url %}
+                            <a href="{{ track.spotify_url }}" target="_blank">{{ track.track_name }}</a>
+                            {% else %}
+                            {{ track.track_name }}
+                            {% endif %}
+                        </div>
+                        <div class="overlap-track-artist">{{ track.artist }}</div>
+                        <div class="overlap-charts">
+                            {% for app in track.appearances %}
+                            <span class="chart-tag">#{{ app.position }} {{ app.playlist|replace('Top ', '')|replace(' - ', ' ') }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Popularity by Playlist -->
+        <div class="section">
+            <h2 class="section-title">Popularity by Playlist</h2>
+            <div class="popularity-grid">
+                {% for playlist, stats in analytics.popularity_stats.by_playlist.items() %}
+                <div class="popularity-card">
+                    <div class="playlist-name">{{ playlist }}</div>
+                    <div class="avg-value">{{ "%.1f"|format(stats.avg) }}</div>
+                    <div class="range">Range: {{ stats.min }} - {{ stats.max }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Explicit Content -->
+        <div class="section">
+            <h2 class="section-title">Explicit Content by Playlist</h2>
+            <div class="explicit-grid">
+                {% for playlist, stats in analytics.explicit_stats.by_playlist.items() %}
+                <div class="explicit-card">
+                    <div class="playlist-name">{{ playlist }}</div>
+                    <div class="explicit-bar-container">
+                        <div class="explicit-bar" style="width: {{ stats.percentage }}%;"></div>
+                    </div>
+                    <div class="percentage">{{ "%.0f"|format(stats.percentage) }}% ({{ stats.explicit }}/{{ stats.total }})</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Multi-Playlist Artists -->
+        {% if analytics.multi_playlist_artists %}
+        <div class="section">
+            <h2 class="section-title">Artists on 3+ Charts</h2>
+            <ul class="artist-list">
+                {% for artist in analytics.multi_playlist_artists %}
+                <li class="artist-item">
+                    <span class="artist-name">
+                        {% if artist.url %}
+                        <a href="{{ artist.url }}" target="_blank">{{ artist.name }}</a>
+                        {% else %}
+                        {{ artist.name }}
+                        {% endif %}
+                    </span>
+                    <span class="artist-stats">
+                        <span class="stat-badge">{{ artist.count }} tracks</span>
+                        <span class="stat-badge">{{ artist.playlists }} charts</span>
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Playlist Tables -->
+        {% for playlist_name, tracks in tracks_by_playlist.items() %}
+        <div class="section playlist-section">
+            <div class="playlist-header">
+                <h2 class="playlist-title">{{ playlist_name }}</h2>
+                <span class="playlist-meta">{{ tracks|length }} tracks</span>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Track</th>
+                        <th>Album</th>
+                        <th>🕐</th>
+                        <th>Popularity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for track in tracks %}
+                    {{ format_track_row(track)|safe }}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <p>Generated on {{ generated_at }} by Spotify Charts Automation</p>
+            <p>Data collected from Spotify Editorial Playlists</p>
+        </footer>
+    </div>
+</body>
+</html>
