@@ -118,7 +118,9 @@ Development and setup utilities:
 
 ```
 scripts/
-└── setup.sh                       # Initial setup script
+├── setup.sh                       # Initial setup script
+├── generate_all_pdfs.py           # Generate PDF reports for all playlists
+└── run_with_libs.sh               # Wrapper script to run Python with WeasyPrint library path
 ```
 
 ## GitHub Actions (`.github/`)

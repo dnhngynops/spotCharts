@@ -421,53 +421,28 @@ class PDFGenerator:
 
     def _calculate_title_font_size(self, playlist_name: Optional[str]) -> tuple:
         """
-        Calculate appropriate font sizes to ensure title fits within table width.
-        Only scales DOWN when text is too wide, never scales UP.
+        Return fixed font sizes for consistent title appearance across all PDFs.
+
+        The 4 editorial playlists have similar name lengths (16-18 chars):
+        - "Top Songs - USA" (16 chars)
+        - "Top Songs - Global" (18 chars)
+        - "Top Albums - USA" (16 chars)
+        - "Top Albums - Global" (18 chars)
+
+        Fixed sizes ensure visual consistency across all reports.
+        Reduced from (2.4, 3.2) to (2.0, 2.6) to (1.8, 2.2) to prevent text cutoff at PDF edges,
+        especially for longer playlist names like "Top Albums - Global".
 
         Args:
-            playlist_name: The playlist name to size
+            playlist_name: The playlist name (unused, kept for API compatibility)
 
         Returns:
             Tuple of (spotify_label_size, playlist_name_size) in em units
         """
-        if not playlist_name:
-            return (2.4, 3.2)  # Default sizes
-
-        # Container is 1200px with 20px padding on each side = 1160px available
-        # Title has NO padding (removed for alignment)
-        # Table is 100% of container width, so table width = 1160px
-        # Title must NOT exceed table width
-        base_playlist_size = 3.2
-        base_spotify_size = 2.4
-        table_width_px = 1160  # Full container available width
-
-        # Use 90% threshold for safety margin
-        # This accounts for rendering variations and ensures text stays within border
-        safety_threshold = table_width_px * 0.90
-
-        # MEASURE actual width at base font size
-        measured_width = self._measure_text_width(playlist_name, base_playlist_size)
-
-        # Apply correction factor: measurement underestimates actual rendered width
-        # PDF rendering produces significantly wider text than measurement
-        # This corrects for base font size (16px vs actual) and rendering differences
-        correction_factor = 3.5  # Further increased to ensure text stays within border
-        actual_width = measured_width * correction_factor
-
-        # Only scale DOWN if text exceeds threshold
-        # If text fits, use default sizes (don't scale up)
-        if actual_width <= safety_threshold:
-            return (base_spotify_size, base_playlist_size)
-
-        # Text is too wide - scale down to fit within threshold
-        scale_factor = safety_threshold / actual_width
-
-        # Apply scale factor to both sizes to maintain proportions
-        # Minimum of 1.2em ensures readability
-        playlist_size = max(1.2, base_playlist_size * scale_factor)
-        spotify_size = max(1.2, base_spotify_size * scale_factor)
-
-        return (spotify_size, playlist_size)
+        # Fixed sizes for consistent appearance across all PDFs
+        # Reduced sizes to prevent text cutoff at PDF edges (especially "Top Albums - Global")
+        # These values fit all 4 editorial playlist names comfortably within 210mm width
+        return (1.8, 2.2)
 
     def _generate_html_content(self, tracks: List[Dict], playlist_name: Optional[str] = None) -> str:
         """
