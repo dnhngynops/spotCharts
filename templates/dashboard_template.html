@@ -452,6 +452,60 @@
             font-size: 0.9em;
         }
 
+        /* Tabs */
+        .tabs-container {
+            margin-bottom: 40px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            color: {{ theme.text_artist }};
+            padding: 12px 20px;
+            font-size: 0.95em;
+            font-family: inherit;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            transition: all 0.2s ease;
+            position: relative;
+            bottom: -2px;
+        }
+
+        .tab-button:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: {{ theme.text_secondary }};
+        }
+
+        .tab-button.active {
+            background: {{ theme.surface }};
+            color: {{ theme.primary }};
+            font-weight: 600;
+            border-bottom: 2px solid {{ theme.primary }};
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-panel {
+            background: {{ theme.surface }};
+            border-radius: 0 12px 12px 12px;
+            padding: 30px;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .analytics-grid {
@@ -474,7 +528,6 @@
         <header class="dashboard-header">
             <h1><span class="spotify-green">Spotify</span> Charts Dashboard</h1>
             <p class="subtitle">Cross-Playlist Analytics &amp; Insights</p>
-            <p class="generated-at">Generated on {{ generated_at }}</p>
         </header>
 
         <!-- Summary Cards -->
@@ -624,36 +677,95 @@
         </div>
         {% endif %}
 
-        <!-- Playlist Tables -->
-        {% for playlist_name, tracks in tracks_by_playlist.items() %}
-        <div class="section playlist-section">
-            <div class="playlist-header">
-                <h2 class="playlist-title">{{ playlist_name }}</h2>
-                <span class="playlist-meta">{{ tracks|length }} tracks</span>
+        <!-- Playlist Tables with Tabs -->
+        <div class="tabs-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="showTab('all-tracks')">All Tracks</button>
+                {% for playlist_name in tracks_by_playlist.keys() %}
+                <button class="tab-button" onclick="showTab('{{ playlist_name|replace(' ', '-')|replace('/', '-') }}')">{{ playlist_name|replace('Top ', '')|replace(' - ', ' ') }}</button>
+                {% endfor %}
             </div>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Track</th>
-                        <th>Album</th>
-                        <th>🕐</th>
-                        <th>Popularity</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for track in tracks %}
-                    {{ format_track_row(track)|safe }}
-                    {% endfor %}
-                </tbody>
-            </table>
+
+            <!-- All Tracks Tab -->
+            <div id="all-tracks" class="tab-content active">
+                <div class="tab-panel">
+                    <div class="playlist-header">
+                        <h2 class="playlist-title">All Tracks</h2>
+                        <span class="playlist-meta">{{ all_tracks|length }} tracks</span>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Track</th>
+                                <th>Album</th>
+                                <th>Playlist</th>
+                                <th>🕐</th>
+                                <th>Popularity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for track in all_tracks %}
+                            {{ format_track_row_with_playlist(track)|safe }}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Individual Playlist Tabs -->
+            {% for playlist_name, tracks in tracks_by_playlist.items() %}
+            <div id="{{ playlist_name|replace(' ', '-')|replace('/', '-') }}" class="tab-content">
+                <div class="tab-panel">
+                    <div class="playlist-header">
+                        <h2 class="playlist-title">{{ playlist_name }}</h2>
+                        <span class="playlist-meta">{{ tracks|length }} tracks</span>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Track</th>
+                                <th>Album</th>
+                                <th>🕐</th>
+                                <th>Popularity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for track in tracks %}
+                            {{ format_track_row(track)|safe }}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
+
+        <script>
+            function showTab(tabId) {
+                // Hide all tab contents
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+
+                // Remove active class from all buttons
+                document.querySelectorAll('.tab-button').forEach(button => {
+                    button.classList.remove('active');
+                });
+
+                // Show selected tab content
+                document.getElementById(tabId).classList.add('active');
+
+                // Add active class to clicked button
+                event.target.classList.add('active');
+            }
+        </script>
 
         <!-- Footer -->
         <footer class="dashboard-footer">
-            <p>Generated on {{ generated_at }} by Spotify Charts Automation</p>
-            <p>Data collected from Spotify Editorial Playlists</p>
+            <p>Generated on {{ generated_at }}</p>
+            <p>by Danh Nguyen</p>
         </footer>
     </div>
 </body>

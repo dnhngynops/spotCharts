@@ -54,7 +54,9 @@ class DashboardGenerator:
             generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             analytics=analytics,
             tracks_by_playlist=tracks_by_playlist,
-            format_track_row=self._format_track_row
+            all_tracks=all_tracks,
+            format_track_row=self._format_track_row,
+            format_track_row_with_playlist=self._format_track_row_with_playlist
         )
 
         # Save to file
@@ -360,6 +362,83 @@ class DashboardGenerator:
             row += f'<td><a href="{album_url}" target="_blank">{album}</a></td>'
         else:
             row += f'<td>{album}</td>'
+
+        # Duration
+        row += f'<td class="duration-cell">{duration}</td>'
+
+        # Popularity with bar
+        pop_width = popularity if popularity else 0
+        row += f'<td class="popularity-cell">'
+        row += f'<div class="pop-container">'
+        row += f'<span class="pop-value">{popularity}</span>'
+        row += f'<span class="pop-bar-bg"><span class="pop-bar" style="width: {pop_width}%;"></span></span>'
+        row += f'</div></td>'
+
+        row += '</tr>'
+        return row
+
+    def _format_track_row_with_playlist(self, track: Dict) -> str:
+        """Format a single track as an HTML table row with playlist column"""
+        position = track.get('position', '')
+        track_name = html.escape(str(track.get('track_name', '')))
+        track_url = html.escape(str(track.get('spotify_url', ''))) if track.get('spotify_url') else ''
+        album = html.escape(str(track.get('album', '')))
+        album_url = html.escape(str(track.get('album_url', ''))) if track.get('album_url') else ''
+        album_image = html.escape(str(track.get('album_image', ''))) if track.get('album_image') else ''
+        duration = html.escape(str(track.get('duration', '')))
+        popularity = track.get('popularity', 0)
+        is_explicit = track.get('explicit', False)
+        playlist = html.escape(str(track.get('playlist', '')))
+
+        # Shorten playlist name for display
+        short_playlist = playlist.replace('Top ', '').replace(' - ', ' ')
+
+        # Build artist names with links
+        artist_html = ''
+        artists = track.get('artists', [])
+        if isinstance(artists, list) and artists:
+            artist_links = []
+            for artist in artists:
+                if isinstance(artist, dict):
+                    name = html.escape(str(artist.get('name', '')))
+                    url = html.escape(str(artist.get('url', ''))) if artist.get('url') else ''
+                    if url:
+                        artist_links.append(f'<a href="{url}" target="_blank">{name}</a>')
+                    else:
+                        artist_links.append(name)
+                else:
+                    artist_links.append(html.escape(str(artist)))
+            artist_html = ', '.join(artist_links)
+        elif track.get('artist'):
+            artist_html = html.escape(str(track.get('artist', '')))
+
+        # Add explicit badge
+        explicit_badge = '<span class="explicit-badge">E</span>' if is_explicit else ''
+
+        # Build row HTML
+        row = f'<tr>'
+        row += f'<td class="position-cell">{position}</td>'
+
+        # Track cell with image
+        row += '<td class="track-cell">'
+        if album_image:
+            row += f'<img src="{album_image}" alt="" class="album-thumb" />'
+        row += '<div class="track-details">'
+        if track_url:
+            row += f'<div class="track-name"><a href="{track_url}" target="_blank">{track_name}</a></div>'
+        else:
+            row += f'<div class="track-name">{track_name}</div>'
+        row += f'<div class="artist-name">{explicit_badge}{artist_html}</div>'
+        row += '</div></td>'
+
+        # Album cell
+        if album_url:
+            row += f'<td><a href="{album_url}" target="_blank">{album}</a></td>'
+        else:
+            row += f'<td>{album}</td>'
+
+        # Playlist cell
+        row += f'<td style="font-size: 0.85em; color: #888;">{short_playlist}</td>'
 
         # Duration
         row += f'<td class="duration-cell">{duration}</td>'
