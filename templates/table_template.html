@@ -24,12 +24,14 @@
             max-width: 1200px;
             width: 100%;
             margin: 0 auto;
+            /* Pre-blended gradient colors for consistent rendering across PDF viewers */
+            /* Colors are pre-computed: green (#1a4a2e) blended with surface (#181818) at various opacities */
             background: linear-gradient(180deg,
-                {% if gradient_color %}{{ gradient_color }}{% else %}#1a4a2e{% endif %} 0%,
-                {% if gradient_color %}{{ gradient_color }}cc{% else %}#1a4a2ecc{% endif %} 2%,
-                {% if gradient_color %}{{ gradient_color }}66{% else %}#1a4a2e66{% endif %} 5%,
-                {% if gradient_color %}{{ gradient_color }}33{% else %}#1a4a2e33{% endif %} 8%,
-                {% if gradient_color %}{{ gradient_color }}15{% else %}#1a4a2e15{% endif %} 12%,
+                #1a4a2e 0%,
+                #194029 2%,
+                #182c20 5%,
+                #18221c 8%,
+                #181c19 12%,
                 {{ theme.surface }} 18%,
                 {{ theme.surface }} 100%);
             border-radius: 8px;
@@ -192,7 +194,7 @@
 
         .track-name {
             color: {{ theme.text_track }};
-            font-weight: 500;
+            font-weight: 600;
             line-height: 1.5;
             word-wrap: break-word;
             overflow-wrap: break-word;

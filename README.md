@@ -225,6 +225,11 @@ spotifyCharts/
 
 ## Recent Updates
 
+**v1.7.1 Cross-Platform PDF Rendering Fix (Jan 2026):**
+- **Font Weight Fix**: Track names now use font-weight 600 (was 500) for consistent rendering on Ubuntu/GitHub Actions
+- **Gradient Fix**: Pre-blended solid colors replace alpha-based hex colors for email PDF viewer compatibility
+- **Result**: PDFs render identically on macOS, Ubuntu, and in email attachments
+
 **v1.4.0 Single-Page PDFs with Playlist Separation (Jan 2026):**
 - **Separate Playlist PDFs**: Each playlist now generates its own individual PDF file
 - **Playlist Title Integration**: PDF titles display the playlist name, playlist column removed from tables

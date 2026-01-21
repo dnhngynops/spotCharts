@@ -4,6 +4,47 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [1.7.1] - 2026-01-21
+
+### Fixed - Cross-Platform PDF Rendering Consistency
+
+- **Track Name Font Weight**: Changed from `font-weight: 500` to `font-weight: 600`
+  - Issue: Track names and artist names appeared identical in GitHub Actions (Ubuntu) PDFs
+  - Cause: Ubuntu lacks Helvetica Neue font which supports weight 500 (Medium)
+  - Ubuntu falls back to DejaVu Sans which only has weights 400 and 700
+  - Weight 500 was falling back to 400, making tracks and artists look the same
+  - Solution: Weight 600 renders distinctly bolder on both macOS and Ubuntu
+
+- **Gradient Rendering in Email PDF Viewers**: Replaced alpha-based colors with pre-blended solid colors
+  - Issue: Gradient appeared as solid green block when PDFs downloaded from email
+  - Cause: 8-digit hex colors (e.g., `#1a4a2ecc`) use PDF transparency features
+  - Email PDF viewers have limited transparency group support
+  - Solution: Pre-computed solid colors that simulate the alpha-blended appearance
+
+  | Stop | Old (alpha) | New (pre-blended) |
+  |------|-------------|-------------------|
+  | 0% | `#1a4a2e` | `#1a4a2e` |
+  | 2% | `#1a4a2ecc` | `#194029` |
+  | 5% | `#1a4a2e66` | `#182c20` |
+  | 8% | `#1a4a2e33` | `#18221c` |
+  | 12% | `#1a4a2e15` | `#181c19` |
+  | 18%+ | `#181818` | `#181818` |
+
+### Technical Changes
+- **Template Updates** (`templates/table_template.html`):
+  - Line 195: `.track-name` font-weight changed from 500 to 600
+  - Lines 27-35: Gradient now uses pre-blended solid colors instead of alpha hex values
+  - Removed dynamic `gradient_color` variable support (was unused)
+  - Added comments explaining the pre-blended color approach
+
+### Benefits
+- PDFs now render consistently across macOS, Ubuntu, and email PDF viewers
+- Track names are visually distinct from artist names on all platforms
+- Gradient effect preserved without relying on PDF transparency features
+- Reduced PDF complexity (fewer XObject references and transparency groups)
+
+---
+
 ## [1.7.0] - 2026-01-20
 
 ### Changed - Visual Styling Enhancements
