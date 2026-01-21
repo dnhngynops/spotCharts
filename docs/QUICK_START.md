@@ -102,7 +102,30 @@ PLAYLIST_4_ID=37i9dQZF1DX4JAvHpjipBk
 python main.py
 ```
 
-### 4. Verify Output
+### 4. Preview Dashboard Changes (Fast Iteration)
+
+For quickly testing dashboard template changes without re-running the full automation:
+
+```bash
+# First run caches track data (~2 min)
+python scripts/preview_dashboard.py
+
+# Subsequent runs use cached data (~1 sec)
+python scripts/preview_dashboard.py
+```
+
+**Workflow:**
+1. Edit `templates/dashboard_template.html`
+2. Run `python scripts/preview_dashboard.py`
+3. Browser opens with updated dashboard instantly
+
+**To refresh the cached track data:**
+```bash
+rm ./output/cached_tracks.json
+python scripts/preview_dashboard.py
+```
+
+### 5. Verify Output
 
 Check for:
 - Generated HTML dashboard in `output/` directory: `spotify_charts_dashboard_YYYYMMDD_HHMMSS.html`
