@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Charts Dashboard - Loading...</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #121212;
+            color: #B3B3B3;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+        }
+        h1 {
+            color: #1DB954;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        .spotify-label {
+            color: #1DB954;
+        }
+        p {
+            font-size: 1.2em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .loading {
+            margin-top: 30px;
+            color: #888888;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><span class="spotify-label">Spotify</span> Charts Dashboard</h1>
+        <p>The dashboard is being generated...</p>
+        <p>This page will automatically update once the GitHub Actions workflow completes.</p>
+        <p class="loading">Please check back after the workflow runs, or trigger it manually from the Actions tab.</p>
+    </div>
+</body>
+</html>
