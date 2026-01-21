@@ -16,6 +16,9 @@ jobs:
       contents: write  # Changed to write to allow committing dashboard to branch
       pages: write
       id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout repository
@@ -193,6 +196,3 @@ jobs:
         if: success()
         id: deployment
         uses: actions/deploy-pages@v4
-        environment:
-          name: github-pages
-          url: ${{ steps.deployment.outputs.page_url }}
