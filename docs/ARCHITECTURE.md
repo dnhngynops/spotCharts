@@ -395,7 +395,8 @@ python main.py
 ```
 
 ### GitHub Actions (Scheduled)
-- Runs every Monday at 9 AM UTC
+- Runs every Thursday at 11 PM PST (7 AM UTC Friday)
+- Dashboard automatically deployed to GitHub Pages after each run
 - Fully automated (no local machine needed)
 - Uses headless Chrome in CI environment
 - Uploads to Google Drive automatically

@@ -133,7 +133,7 @@ CI/CD automation workflows:
 ```
 .github/
 └── workflows/
-    └── spotify-charts.yml         # Weekly automation workflow
+    └── spotify-charts-automation.yml  # Weekly automation workflow + GitHub Pages deployment
 ```
 
 ## Data Directories (Gitignored)

@@ -63,7 +63,8 @@ All notable changes to the Spotify Charts automation project.
 - **Workflow** (`.github/workflows/spotify-charts-automation.yml`):
   - Added "Prepare dashboard for GitHub Pages" step
   - Added "Setup Pages", "Upload artifact", and "Deploy to GitHub Pages" steps
-  - Added workflow-level permissions for Pages deployment
+  - Added job-level permissions for Pages deployment (`contents: write`, `pages: write`, `id-token: write`)
+  - Added `environment` configuration at job level for GitHub Pages deployment
 
 - **Git Configuration** (`.gitignore`):
   - Added exception for `docs/index.html` to allow GitHub Pages deployment
