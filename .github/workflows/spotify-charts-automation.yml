@@ -107,13 +107,26 @@ jobs:
         run: |
           echo "Starting Spotify Charts automation..."
           echo "Timezone: $(TZ='America/Los_Angeles' date '+%Y-%m-%d %H:%M:%S %Z')"
+          echo "Chrome version: $(google-chrome --version || chromium --version || echo 'Chrome not found')"
           python main.py
 
-      - name: Upload artifacts (if needed for debugging)
-        if: failure()
+      - name: Debug - Show first few tracks from each playlist
+        if: always()
+        run: |
+          echo "=== Debugging: Checking collected track data ==="
+          # Find the latest dashboard and extract some track info
+          DASHBOARD=$(ls -t output/spotify_charts_dashboard_*.html 2>/dev/null | head -1)
+          if [ -f "$DASHBOARD" ]; then
+            echo "Dashboard file: $DASHBOARD"
+            echo "First 5 track names from dashboard:"
+            grep -oP '(?<=class="track-name"><a[^>]*>)[^<]+' "$DASHBOARD" | head -20 || echo "Could not extract track names"
+          fi
+
+      - name: Upload artifacts for debugging
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: error-logs
+          name: debug-outputs
           path: |
             *.log
             output/*.html
