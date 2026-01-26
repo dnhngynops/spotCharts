@@ -45,6 +45,12 @@ class DashboardGenerator:
         # Group tracks by playlist
         tracks_by_playlist = self._group_by_playlist(all_tracks)
 
+        # Sort all_tracks by playlist name, then by position for the "All Tracks" tab
+        sorted_all_tracks = sorted(
+            all_tracks,
+            key=lambda x: (x.get('playlist', ''), x.get('position', 999))
+        )
+
         # Load and render template
         with open(self.template_path, 'r') as f:
             template = Template(f.read())
@@ -54,7 +60,7 @@ class DashboardGenerator:
             generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             analytics=analytics,
             tracks_by_playlist=tracks_by_playlist,
-            all_tracks=all_tracks,
+            all_tracks=sorted_all_tracks,
             format_track_row=self._format_track_row,
             format_track_row_with_playlist=self._format_track_row_with_playlist
         )
