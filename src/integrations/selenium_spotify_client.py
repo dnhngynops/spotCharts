@@ -128,6 +128,9 @@ class SeleniumSpotifyClient:
         time.sleep(3)
         self.logger.info("Page loaded, extracting tracks...")
 
+        # DEBUG: Save screenshot and page info for CI debugging
+        self._save_debug_info(driver, playlist_id, "after_load")
+
         # Focus window
         try:
             driver.execute_script("window.focus();")
@@ -161,6 +164,48 @@ class SeleniumSpotifyClient:
     def close(self):
         """Close the browser session"""
         self._manager.close()
+
+    def _save_debug_info(self, driver, playlist_id: str, stage: str):
+        """Save screenshot and page info for debugging CI issues"""
+        try:
+            debug_dir = os.path.join(os.getcwd(), 'output', 'debug')
+            os.makedirs(debug_dir, exist_ok=True)
+
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+            # Save screenshot
+            screenshot_path = os.path.join(debug_dir, f'screenshot_{playlist_id}_{stage}_{timestamp}.png')
+            driver.save_screenshot(screenshot_path)
+            self.logger.info(f"DEBUG: Screenshot saved to {screenshot_path}")
+
+            # Save page source (first 5000 chars)
+            page_source = driver.page_source[:5000] if driver.page_source else "No page source"
+            source_path = os.path.join(debug_dir, f'page_source_{playlist_id}_{stage}_{timestamp}.txt')
+            with open(source_path, 'w', encoding='utf-8') as f:
+                f.write(f"URL: {driver.current_url}\n")
+                f.write(f"Title: {driver.title}\n")
+                f.write(f"Timestamp: {timestamp}\n")
+                f.write("=" * 50 + "\n")
+                f.write(page_source)
+            self.logger.info(f"DEBUG: Page source saved to {source_path}")
+
+            # Log first few visible track names for quick debugging
+            try:
+                track_rows = driver.find_elements(By.CSS_SELECTOR, self.TRACK_ROW_SELECTOR)[:5]
+                self.logger.info(f"DEBUG: Found {len(driver.find_elements(By.CSS_SELECTOR, self.TRACK_ROW_SELECTOR))} total track rows")
+                for i, row in enumerate(track_rows):
+                    try:
+                        # Try to get track name
+                        track_name_el = row.find_element(By.CSS_SELECTOR, 'a[data-testid="internal-track-link"] div')
+                        track_name = track_name_el.text if track_name_el else "Unknown"
+                        self.logger.info(f"DEBUG: Track {i+1}: {track_name}")
+                    except Exception as e:
+                        self.logger.debug(f"DEBUG: Could not get track {i+1} name: {e}")
+            except Exception as e:
+                self.logger.warning(f"DEBUG: Could not enumerate tracks: {e}")
+
+        except Exception as e:
+            self.logger.warning(f"DEBUG: Could not save debug info: {e}")
 
     # -----------------------------------------------------------------
     # Internal helpers

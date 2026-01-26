@@ -29,7 +29,19 @@ def main():
         if not tracks:
             print("   No tracks found. Exiting.")
             return
-        
+
+        # DEBUG: Print first 3 tracks from each playlist
+        print("\n   === DEBUG: First 3 tracks from each playlist ===")
+        from collections import defaultdict
+        debug_tracks_by_playlist = defaultdict(list)
+        for t in tracks:
+            debug_tracks_by_playlist[t.get('playlist', 'Unknown')].append(t)
+        for pname, ptracks in debug_tracks_by_playlist.items():
+            print(f"   {pname}:")
+            for t in sorted(ptracks, key=lambda x: x.get('position', 999))[:3]:
+                print(f"      #{t.get('position', '?')}: {t.get('track_name', 'Unknown')} - {t.get('artist', 'Unknown')}")
+        print("   === END DEBUG ===\n")
+
         # Step 2: Generate reports
         print("\n2. Generating reports...")
         table_generator = TableGenerator()

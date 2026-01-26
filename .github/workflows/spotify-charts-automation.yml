@@ -131,6 +131,7 @@ jobs:
             *.log
             output/*.html
             output/*.pdf
+            output/debug/*
           retention-days: 7
 
       - name: Notify on failure
