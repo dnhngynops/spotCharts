@@ -295,7 +295,7 @@ class DashboardGenerator:
                 'track_count': len(playlist_tracks),
                 'explicit_count': sum(1 for t in playlist_tracks if t.get('explicit')),
                 'avg_popularity': sum(pops) / len(pops) if pops else 0,
-                'top_track': max(playlist_tracks, key=lambda x: x.get('popularity', 0)) if playlist_tracks else None
+                'top_track': max(playlist_tracks, key=lambda x: x.get('popularity') or 0) if playlist_tracks else None
             }
 
         return stats

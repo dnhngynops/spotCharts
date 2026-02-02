@@ -395,6 +395,16 @@
             text-decoration: none;
         }
 
+        /* Album link styling - match PDF report styling */
+        .data-table td a {
+            color: {{ theme.text_secondary }};
+            text-decoration: none;
+        }
+
+        .data-table td a:hover {
+            color: {{ theme.primary }};
+        }
+
         .duration-cell {
             width: 60px;
             text-align: center;
@@ -418,14 +428,20 @@
         }
 
         .pop-bar-bg {
+            display: block;
             flex: 1;
             height: 6px;
             background: {{ theme.bar_background }};
             border-radius: 3px;
             overflow: hidden;
+            position: relative;
         }
 
         .pop-bar {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
             height: 100%;
             background: {{ theme.primary }};
             border-radius: 3px;
