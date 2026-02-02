@@ -4,6 +4,38 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [1.9.0] - 2026-01-26
+
+### Fixed - Chart Position Preservation in CI Environments
+
+- **Position Reassignment Bug**: Fixed critical bug where chart positions were being incorrectly reassigned sequentially
+  - Issue: When collection was incomplete (common in CI environments), the code would reassign positions sequentially (1, 2, 3...) instead of preserving actual chart positions
+  - Example: If collected positions were [1, 2, 3, 5, 7, 10], they would be incorrectly reassigned as [1, 2, 3, 4, 5, 6], losing the real chart positions
+  - Root cause: Fallback code path (lines 723-729) was reassigning all positions sequentially regardless of original chart positions
+  - Solution: Preserve original chart positions. Only assign sequential positions to tracks that don't have positions, starting after the highest collected position
+  - Impact: CI workflow runs now show correct chart positions matching local execution
+
+- **Enhanced Logging**: Added warning logs when not all 50 positions are collected
+  - Logs missing positions for debugging
+  - Helps identify incomplete scrolling issues in CI environments
+  - Shows first 10 collected positions for quick verification
+
+### Technical Changes
+
+- **selenium_spotify_client.py** (`_collect_tracks` method):
+  - Removed sequential position reassignment in fallback case (lines 723-729)
+  - Added position preservation logic - only tracks without positions get sequential numbers
+  - Added missing position detection and warning logs
+  - Preserves `original_position` field for reference
+
+### Benefits
+
+- Correct chart positions in all environments (local and CI)
+- Better debugging capabilities with enhanced logging
+- Consistent data between local runs and GitHub Actions workflow
+
+---
+
 ## [1.8.0] - 2026-01-21
 
 ### Added - HTML Analytics Dashboard & GitHub Pages Integration

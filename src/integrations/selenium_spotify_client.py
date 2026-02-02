@@ -698,6 +698,8 @@ class SeleniumSpotifyClient:
         if target_position == 50 and len(deduplicated) >= 50:
             # Check if we have all positions 1-50
             positions_collected = set(deduplicated.keys())
+            missing_positions = [pos for pos in range(1, 51) if pos not in positions_collected]
+            
             if all(pos in positions_collected for pos in range(1, 51)):
                 # We have all 50 positions, trim to exactly 50 tracks
                 tracks = [deduplicated[pos] for pos in range(1, 51)]
@@ -707,7 +709,7 @@ class SeleniumSpotifyClient:
                     f"to exactly 50 tracks (positions 1-50)"
                 )
 
-                # Reassign positions sequentially (already 1-50)
+                # Reassign positions sequentially (already 1-50, but ensure they're exactly sequential)
                 for index, track in enumerate(tracks, start=1):
                     original_position = track.get("position")
                     track["position"] = index
@@ -715,22 +717,40 @@ class SeleniumSpotifyClient:
                         track["original_position"] = original_position
 
                 return tracks
+            else:
+                # We don't have all positions 1-50 - log missing positions for debugging
+                self.logger.warning(
+                    f"WARNING: Did not collect all 50 positions. Missing positions: {missing_positions}. "
+                    f"Collected positions: {sorted(positions_collected)[:10]}... (showing first 10). "
+                    f"Total positions collected: {len(positions_collected)}. "
+                    f"This may indicate incomplete scrolling in CI environment."
+                )
 
         # Default behavior: include all tracks
         # Add tracks without positions at the end
         tracks.extend(tracks_without_position)
 
-        # Reassign positions sequentially based on original order
-        for index, track in enumerate(tracks, start=1):
-            original_position = track.get("position")
-            track["position"] = index
-            # Keep original position for reference
-            if original_position:
-                track["original_position"] = original_position
+        # FIX (v1.9.0): Preserve original chart positions instead of reassigning sequentially
+        # Issue: Sequential reassignment was overwriting actual chart positions (e.g., if we collected
+        # positions [1, 2, 3, 5, 7, 10], it would reassign as [1, 2, 3, 4, 5, 6], losing the real positions).
+        # This caused incorrect positions in CI environments where collection might be incomplete.
+        # Solution: Only assign sequential positions to tracks that don't have positions, starting after
+        # the highest collected position. Preserve all original chart positions.
+        if tracks_without_position:
+            # Find the highest position from tracks with positions
+            highest_position = max([t.get("position", 0) for t in tracks if t.get("position")], default=0)
+            # Assign sequential positions to tracks without positions, starting after highest
+            for index, track in enumerate(tracks_without_position, start=highest_position + 1):
+                if not track.get("position"):
+                    track["position"] = index
+
+        # DO NOT reassign positions for tracks that already have positions - preserve chart positions!
+        # Only tracks without positions get sequential numbers (handled above)
 
         self.logger.info(
             f"Deduplication: {len(collected)} raw -> {len(tracks)} unique tracks "
-            f"({len(deduplicated)} with positions, {len(tracks_without_position)} without positions)"
+            f"({len(deduplicated)} with positions, {len(tracks_without_position)} without positions). "
+            f"Preserved original chart positions."
         )
 
         return tracks
