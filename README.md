@@ -12,15 +12,15 @@ Automated system to fetch tracks from 4 editorial Spotify playlists, generate fo
 - **Robust & Reliable**: Multiple fallback strategies prevent collection failures
 - **Headless Browser**: Runs invisibly in background with performance optimizations
 
-### **Report Generation (v1.8.0)**
+### **Report Generation (v1.8.0 / v2.2.0)**
 - **Interactive HTML Dashboard**: Comprehensive analytics dashboard with cross-playlist insights
-  - Summary statistics (total tracks, unique tracks, average popularity, explicit content)
-  - Top artists analysis across all charts (with track counts and chart appearances)
+  - Summary statistics (**unique tracks**, playlists, average popularity, explicit content)
+  - **All Tracks table**: Deduplicated (one row per unique track), ranks 1–N by composite score (chart appearances, avg position, popularity, playlist avg popularity)
+  - Filter bar in same container as All Tracks table; filter by search, playlist, genre, explicit
+  - Top artists and genres across all charts (with track dropdowns)
   - Chart overlap analysis (tracks appearing on multiple playlists)
   - USA vs Global comparison for Songs playlists
   - Popularity distribution by playlist
-  - Explicit content statistics with visual bars
-  - Multi-playlist artist identification
   - Full track listings for each playlist (50 tracks each)
   - **GitHub Pages Hosting**: Automatically deployed to public URL after each run
 - **Separate Playlist PDFs**: Each playlist generates its own PDF report with "Spotify [playlist name]" title format
@@ -211,7 +211,10 @@ spotifyCharts/
 │       └── helpers.py               # Common helper functions
 │
 ├── scripts/                         # Development utilities
-│   └── setup.sh                     # Initial setup script
+│   ├── setup.sh                     # Initial setup script
+│   ├── preview_dashboard.py        # Regenerate dashboard from cache (or fresh data)
+│   ├── generate_all_pdfs.py        # Generate PDFs for all playlists only
+│   └── run_with_libs.sh            # Run Python with WeasyPrint library path (macOS)
 │
 ├── tests/                           # Test suite
 │   ├── integration/                 # Integration tests
@@ -236,28 +239,29 @@ spotifyCharts/
 │
 └── .github/                         # GitHub Actions workflows
     └── workflows/
-        └── spotify-charts.yml       # Automation workflow
+        └── spotify-charts-automation.yml  # Automation workflow + GitHub Pages
 ```
 
 ## Recent Updates
 
+**v2.2.0 All Tracks Deduplication & Dashboard UX (Feb 2026):**
+- **All Tracks Table**: Unique tracks only (no duplicates); ranks 1–N by composite score
+  - Composite rank uses: chart appearances, average chart position, track popularity, playlist avg popularity
+  - Summary card shows **Unique Tracks** count instead of total track rows
+  - Playlist column removed from table; filter bar moved into same container as table
+  - Popularity cell spacing reduced (score and bar closer); sort/filter fix for missing positions
+
+**v2.1.0 / v2.0.0 Dashboard & Genres (Feb 2026):**
+- Dynamic popularity histograms, playlist hyperlinks, top artists/genres (20 each), USA vs Global overlay dropdowns
+- Genre collection via Artist API; genre analytics in dashboard
+
 **v1.8.0 HTML Analytics Dashboard & GitHub Pages (Jan 2026):**
-- **Interactive Dashboard**: New comprehensive HTML dashboard with cross-playlist analytics
-  - Summary statistics cards (total tracks, playlists, unique tracks, avg popularity, explicit count)
-  - Top artists analysis (top 15 with track counts and chart appearances)
-  - Chart overlap detection (tracks appearing on multiple playlists)
-  - USA vs Global Songs comparison with overlap statistics
-  - Popularity distribution analysis by playlist
-  - Explicit content statistics with visual progress bars
-  - Multi-playlist artists (artists on 3+ charts)
-  - Complete track listings for each playlist with album art and links
-- **GitHub Pages Integration**: Automatic deployment of dashboard to public URL
-  - Dashboard automatically updates after each workflow run
-  - Accessible at: `https://[username].github.io/[repository-name]/`
-  - Zero manual intervention required
-- **New Module**: `DashboardGenerator` for comprehensive analytics calculation
-- **Updated Main Pipeline**: Now uses `DashboardGenerator` instead of simple HTML table
-- **Template**: New `dashboard_template.html` with responsive design and Spotify theming
+- **Interactive Dashboard**: Comprehensive HTML dashboard with cross-playlist analytics
+  - Summary cards (unique tracks, artists, avg popularity, genres, explicit)
+  - Top artists and genres with track dropdowns; chart overlap; USA vs Global
+  - Complete track listings per playlist; Spotify theming
+- **GitHub Pages**: Dashboard deployed automatically after each workflow run
+- **Module**: `DashboardGenerator`; main pipeline uses it for HTML dashboard
 
 **v1.7.1 Cross-Platform PDF Rendering Fix (Jan 2026):**
 - **Font Weight Fix**: Track names now use font-weight 600 (was 500) for consistent rendering on Ubuntu/GitHub Actions

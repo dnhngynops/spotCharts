@@ -6,6 +6,7 @@ across all collected playlists, providing insights useful for A&R.
 """
 import os
 import html
+import json
 from typing import List, Dict, Optional
 from datetime import datetime
 from collections import Counter, defaultdict
@@ -52,11 +53,8 @@ class DashboardGenerator:
                 playlist_tracks, playlist_name
             )
 
-        # Sort all_tracks by playlist name, then by position for the "All Tracks" tab
-        sorted_all_tracks = sorted(
-            all_tracks,
-            key=lambda x: (x.get('playlist', ''), x.get('position', 999))
-        )
+        # Deduplicate tracks and assign ranks for All Tracks tab (no duplicate tracks; rank by composite score)
+        sorted_all_tracks = self._build_deduplicated_ranked_all_tracks(all_tracks)
 
         # Build playlist name -> Spotify URL mapping
         playlist_urls = {}
@@ -495,6 +493,86 @@ class DashboardGenerator:
 
         return dict(grouped)
 
+    def _build_deduplicated_ranked_all_tracks(self, tracks: List[Dict]) -> List[Dict]:
+        """
+        Deduplicate tracks (one row per unique track) and assign ranks using a composite score.
+
+        Composite score uses (equal weight):
+        - Number of chart appearances (more = better)
+        - Average chart appearance ranking (lower position = better)
+        - Track popularity score (higher = better)
+        - Playlist average popularity score (avg of playlists' avg popularity for playlists this track appears on)
+
+        Returns list of unique track dicts with position = computed rank (1, 2, 3, ...).
+        """
+        # Per-playlist average popularity (0-100)
+        playlist_avg_pop = {}
+        for track in tracks:
+            pl = track.get('playlist', '')
+            if pl and pl not in playlist_avg_pop:
+                pops = [t.get('popularity', 0) for t in tracks if t.get('playlist') == pl and t.get('popularity')]
+                playlist_avg_pop[pl] = sum(pops) / len(pops) if pops else 0
+
+        # Group by unique track: prefer track_id, else (track_name, artist)
+        groups = defaultdict(list)
+        for track in tracks:
+            tid = track.get('track_id', '').strip()
+            key = tid if tid else (track.get('track_name', ''), track.get('artist', ''))
+            groups[key].append(track)
+
+        ranked = []
+        for _key, appearances in groups.items():
+            # Pick canonical track (first with most data; prefer one with popularity/album_image)
+            canonical = max(
+                appearances,
+                key=lambda t: (
+                    1 if t.get('track_id') else 0,
+                    1 if t.get('album_image') else 0,
+                    t.get('popularity') or 0,
+                    -(t.get('position') or 999),
+                ),
+            )
+
+            num_charts = len(appearances)
+            positions = [t.get('position') for t in appearances if t.get('position') and t.get('position') > 0]
+            avg_position = sum(positions) / len(positions) if positions else 50
+            # Track popularity: use max across appearances (best showing)
+            track_pop = max((t.get('popularity') or 0) for t in appearances)
+            # Playlist avg popularity: average of each playlist's avg popularity for playlists this track is on
+            playlists_seen = [t.get('playlist', '') for t in appearances if t.get('playlist')]
+            playlist_avg_for_track = (
+                sum(playlist_avg_pop.get(pl, 0) for pl in playlists_seen) / len(playlists_seen)
+                if playlists_seen else 0
+            )
+
+            # Normalize components to 0-100 scale (higher = better)
+            chart_norm = (num_charts / 4.0) * 100  # max 4 playlists
+            position_norm = max(0, (51 - avg_position) / 50.0 * 100)  # lower position = higher score
+            pop_norm = min(100, track_pop)
+            playlist_avg_norm = min(100, playlist_avg_for_track)
+
+            composite = 0.25 * chart_norm + 0.25 * position_norm + 0.25 * pop_norm + 0.25 * playlist_avg_norm
+
+            # Build row: copy canonical track, set rank fields and playlist list for filter
+            row = dict(canonical)
+            row['position'] = None  # set below after sort
+            row['_composite'] = composite
+            row['_num_charts'] = num_charts
+            row['_avg_position'] = avg_position
+            row['popularity'] = track_pop  # show best popularity
+            row['playlist'] = ','.join(sorted(set(playlists_seen))) if playlists_seen else ''
+            ranked.append(row)
+
+        # Sort by composite descending, then assign ranks 1, 2, 3, ...
+        ranked.sort(key=lambda t: (-t['_composite'], t['_avg_position'], -t.get('popularity', 0)))
+        for i, row in enumerate(ranked, start=1):
+            row['position'] = i
+            del row['_composite']
+            del row['_num_charts']
+            del row['_avg_position']
+
+        return ranked
+
     def _format_track_row(self, track: Dict) -> str:
         """Format a single track as an HTML table row"""
         position = track.get('position', '')
@@ -607,8 +685,15 @@ class DashboardGenerator:
         return buckets
 
     def _format_track_row_with_playlist(self, track: Dict) -> str:
-        """Format a single track as an HTML table row with playlist column"""
+        """Format a single track as an HTML table row for All Tracks (no playlist column)."""
         position = track.get('position', '')
+        # Ensure numeric position for client-side sort: missing/0 -> 999 so rows sort last
+        position_num = 999
+        if position is not None and position != '':
+            try:
+                position_num = int(position)
+            except (TypeError, ValueError):
+                pass
         track_name = html.escape(str(track.get('track_name', '')))
         track_url = html.escape(str(track.get('spotify_url', ''))) if track.get('spotify_url') else ''
         album = html.escape(str(track.get('album', '')))
@@ -618,9 +703,6 @@ class DashboardGenerator:
         popularity = track.get('popularity', 0)
         is_explicit = track.get('explicit', False)
         playlist = html.escape(str(track.get('playlist', '')))
-
-        # Shorten playlist name for display
-        short_playlist = playlist.replace('Top ', '').replace(' - ', ' ')
 
         # Build artist names with links
         artist_html = ''
@@ -644,8 +726,25 @@ class DashboardGenerator:
         # Add explicit badge
         explicit_badge = '<span class="explicit-badge">E</span>' if is_explicit else ''
 
+        # Data attributes for client-side filtering and sorting (position must be numeric for sort)
+        artist_text = html.escape(str(track.get('artist', '')).lower())
+        duration_ms = track.get('duration_ms', 0) or 0
+        genres_json = html.escape(json.dumps(track.get('genres', [])))
+
         # Build row HTML
-        row = f'<tr>'
+        row = (
+            f'<tr'
+            f' data-position="{position_num}"'
+            f' data-track="{html.escape(str(track.get("track_name", "")).lower())}"'
+            f' data-artist="{artist_text}"'
+            f' data-album="{html.escape(str(track.get("album", "")).lower())}"'
+            f' data-playlist="{playlist}"'
+            f' data-duration-ms="{duration_ms}"'
+            f' data-popularity="{popularity}"'
+            f' data-explicit="{"true" if is_explicit else "false"}"'
+            f' data-genres="{genres_json}"'
+            f'>'
+        )
         row += f'<td class="position-cell">{position}</td>'
 
         # Track cell with image
@@ -666,15 +765,7 @@ class DashboardGenerator:
         else:
             row += f'<td>{album}</td>'
 
-        # Playlist cell
-        playlist_id = track.get('playlist_id', '')
-        if playlist_id:
-            playlist_link = f'https://open.spotify.com/playlist/{html.escape(playlist_id)}'
-            row += f'<td style="font-size: 0.85em;"><a href="{playlist_link}" target="_blank" style="color: #888; text-decoration: none;">{short_playlist}</a></td>'
-        else:
-            row += f'<td style="font-size: 0.85em; color: #888;">{short_playlist}</td>'
-
-        # Duration
+        # Duration (playlist column removed; filter still uses data-playlist)
         row += f'<td class="duration-cell">{duration}</td>'
 
         # Popularity with bar

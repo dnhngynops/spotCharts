@@ -217,6 +217,7 @@ def get_playlist_tracks(playlist_id, playlist_name):
 
 **Key Methods**:
 - `generate_dashboard()`: Main entry point - generates complete dashboard HTML
+- `_build_deduplicated_ranked_all_tracks()`: Deduplicates tracks (one row per unique track) and assigns ranks 1–N by composite score (chart appearances, avg position, track popularity, playlist avg popularity)
 - `_calculate_analytics()`: Orchestrates all analytics calculations
 - `_analyze_artists()`: Artist frequency, multi-playlist presence, and per-artist track details
 - `_analyze_genres()`: Genre frequency, cross-playlist presence, and per-genre track details
@@ -227,18 +228,17 @@ def get_playlist_tracks(playlist_id, playlist_name):
 - `_calculate_playlist_analytics()`: Per-playlist metrics including genres, histogram, and track details
 - `_build_histogram()`: Static method for dynamic histogram bin calculation based on actual data range
 - `_format_track_row()`: Formats individual tracks for table display
-- `_format_track_row_with_playlist()`: Formats tracks with playlist column (includes Spotify playlist link)
+- `_format_track_row_with_playlist()`: Formats All Tracks row (no playlist column; data-playlist for filter)
 
 **Analytics Features**:
-- Summary statistics (total tracks, playlists, unique tracks, average popularity, explicit count, unique genres)
-- Top 20 artists across all charts with track counts, chart appearances, and track dropdowns (top 10 per playlist)
+- Summary statistics (**unique tracks**, playlists, average popularity, explicit count, unique genres)
+- **All Tracks tab**: Deduplicated table (one row per unique track), ranks 1–N by composite score; filter bar in same container; filter by search, playlist, genre, explicit
+- Top 20 artists across all charts with track counts and track dropdowns (top 10 per playlist)
 - Top 20 genres across all charts with track counts and track dropdowns (top 10 per playlist)
 - Chart overlap (tracks appearing on multiple playlists)
-- USA vs Global Songs comparison with overlay dropdowns (expand without affecting container size)
-- Popularity stats per playlist: average score, range bar with average dot, dynamic histogram (5 bins)
-- Explicit content statistics with percentages
+- USA vs Global Songs comparison with overlay dropdowns
+- Popularity stats per playlist: average score, range bar, dynamic histogram (5 bins)
 - Playlist titles hyperlinked to their Spotify URLs
-- Playlist column in All Tracks table hyperlinked to Spotify
 - Full track listings for each playlist
 
 **Output**: Interactive HTML dashboard deployed to GitHub Pages
@@ -421,5 +421,5 @@ python main.py
 ---
 
 **Last Updated**: 2026-02-04
-**Version**: 2.1.0
-**Architecture**: Selenium-Primary + API Enrichment (with Genre Collection) + Analytics Dashboard
+**Version**: 2.2.0
+**Architecture**: Selenium-Primary + API Enrichment (with Genre Collection) + Analytics Dashboard (All Tracks deduplicated & composite-ranked)

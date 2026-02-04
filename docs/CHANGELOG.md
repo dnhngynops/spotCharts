@@ -4,6 +4,56 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [2.2.0] - 2026-02-04
+
+### Added - All Tracks Deduplication & Composite Ranking
+
+- **Unique Tracks in All Tracks Table**: No duplicate tracks; one row per unique track (deduplicated by track_id or track_name+artist)
+  - New `_build_deduplicated_ranked_all_tracks()` in `DashboardGenerator` groups by unique track and assigns a single composite rank
+  - Ranks 1, 2, 3, … with no duplicate rank numbers
+
+- **Composite Rank Formula**: Rank order uses four metrics (equal weight):
+  - Number of chart appearances (more playlists = higher rank)
+  - Average chart appearance ranking (better positions = higher rank)
+  - Track popularity score (max across appearances)
+  - Playlist average popularity (avg of each playlist’s avg popularity for playlists the track appears on)
+
+- **Summary Card**: "Total Tracks" metric box now shows **Unique Tracks** count (label and value)
+  - Tab data attributes updated so All Tracks tab displays unique count in summary cards
+
+- **Filter Bar Placement**: Filter bar moved into the same container as the All Tracks table, directly under the "All Tracks" title
+  - Single section contains title, filter bar, and table
+  - Added `.filter-bar-inline` with margin for spacing
+
+- **Popularity Cell Spacing**: Reduced gap between popularity score and bar in table cells (8px → 4px); `.pop-value` uses `flex-shrink: 0` for alignment
+
+### Changed
+
+- **All Tracks Table**: Playlist column removed from the table (filter still uses data-playlist; comma-separated for tracks on multiple charts)
+- **Playlist Filter**: JS updated to support comma-separated `data-playlist` so multi-chart tracks match when filtering by playlist
+
+### Fixed
+
+- **Missing Top Tracks**: All Tracks table no longer drops rows with missing/zero position
+  - `data-position` is always numeric (999 fallback for missing); sort comparator treats NaN/0 for position as 999 so those rows sort last
+
+### Technical Changes
+
+- **`src/reporting/dashboard_generator.py`**:
+  - Added `_build_deduplicated_ranked_all_tracks(tracks)` for dedupe and composite ranking
+  - `generate_dashboard()` now passes ranked unique tracks as `all_tracks` to template
+  - `_format_track_row_with_playlist()`: removed playlist column cell; numeric `data-position` with 999 fallback
+
+- **`templates/dashboard_template.html`**:
+  - Summary card value/label and tab data use unique_tracks
+  - Filter bar moved inside All Tracks table section; added `.filter-bar-inline`
+  - Playlist header column removed; no-results colspan 6 → 5
+  - Playlist filter JS: split `data-playlist` by comma and check inclusion
+  - Sort comparator: position NaN/0 treated as 999
+  - `.pop-container` gap 8px → 4px; `.pop-value` flex-shrink: 0
+
+---
+
 ## [2.1.0] - 2026-02-04
 
 ### Added - Dashboard Enhancements & Playlist Linking
