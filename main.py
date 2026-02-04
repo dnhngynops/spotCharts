@@ -139,6 +139,11 @@ def main():
                     <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
                     <p><strong>Formats:</strong> {formats_text}</p>
                     <p>The reports are attached to this email.</p>
+                    <p style="margin-top: 20px;">
+                        <a href="https://dnhngynops.github.io/spotCharts/" style="color: #1DB954; text-decoration: none;">
+                            View the dashboard for more analytics and insights →
+                        </a>
+                    </p>
                 </body>
             </html>
             """

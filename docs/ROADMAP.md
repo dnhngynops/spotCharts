@@ -2,17 +2,22 @@
 
 This document outlines the planned features and enhancements for the Spotify Charts Automation system, specifically tailored for music A&R use cases.
 
-## Current Status (v1.2.1)
+## Current Status (v2.1.0)
 
 ### ✅ Fully Implemented Features
-- **Hybrid Data Collection**: Spotify API + Selenium fallback for editorial playlists
+- **Selenium-Primary Data Collection**: Selenium scraping as primary method, Spotify API for enrichment
 - **100% Collection Accuracy**: All playlists collect exactly 50 tracks (fixed v1.2.1)
 - **Performance Optimized**: 8-9 seconds per playlist with headless browser
 - **Robust Error Handling**: Multiple fallback strategies prevent failures
-- HTML table generation with Spotify theming
+- **Genre Collection**: Batch genre fetching from Spotify Artist API (v2.0.0)
+- **Interactive HTML Dashboard**: Analytics dashboard with cross-playlist insights, deployed to GitHub Pages
+- **Playlist Hyperlinks**: Playlist titles and table entries linked to Spotify (v2.1.0)
+- **Dynamic Histograms**: Popularity histogram bins calculated from actual data range (v2.1.0)
+- **Popularity Range Bar**: Visual range indicator with average dot per playlist (v2.1.0)
+- **Separate PDF Reports**: One single-page PDF per playlist with Spotify theming
 - Google Drive upload functionality
 - Email notifications with attachments
-- GitHub Actions automation (weekly scheduling - Monday 9 AM UTC)
+- GitHub Actions automation (weekly scheduling - Thursday 11 PM PST)
 - Configurable playlist and table settings
 
 ### 📊 Data Collection Capabilities
@@ -21,7 +26,19 @@ This document outlines the planned features and enhancements for the Spotify Cha
 - Artist profile URLs (Selenium collection)
 - Chart positions (1-50)
 - Explicit content flags
-- Playlist metadata
+- Playlist metadata and playlist IDs (for hyperlinking)
+- **Genre data** (from Artist API, ~54% coverage)
+- Popularity scores, duration, album images (API enrichment)
+
+### 📈 Dashboard Analytics
+- Summary cards (tracks, playlists, unique tracks, average popularity, explicit count, unique genres)
+- Top 20 artists with track count dropdowns (All Tracks tab); top 10 per playlist
+- Top 20 genres with track count dropdowns (All Tracks tab); top 10 per playlist
+- Popularity stats with range bar and dynamic histogram (labeled axes)
+- USA vs Global comparison with overlay dropdowns
+- Chart overlap detection
+- Explicit content distribution
+- Playlist titles hyperlinked to Spotify
 
 ---
 
@@ -74,7 +91,8 @@ This document outlines the planned features and enhancements for the Spotify Cha
 - [ ] Week-over-week change detection (new entries, drops, position shifts)
 - [ ] Playlist velocity metrics (track movement speed)
 - [ ] Artist trending analysis (increasing presence)
-- [ ] Genre/style trend identification
+- [x] Genre collection and display (implemented v2.0.0 via Artist API)
+- [ ] Genre trend identification (requires historical tracking)
 - [ ] Momentum scoring system
 
 **Impact:** Identify rising tracks and artists early

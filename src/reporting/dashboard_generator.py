@@ -45,11 +45,26 @@ class DashboardGenerator:
         # Group tracks by playlist
         tracks_by_playlist = self._group_by_playlist(all_tracks)
 
+        # Calculate per-playlist analytics for tab-specific insights
+        playlist_analytics = {}
+        for playlist_name, playlist_tracks in tracks_by_playlist.items():
+            playlist_analytics[playlist_name] = self._calculate_playlist_analytics(
+                playlist_tracks, playlist_name
+            )
+
         # Sort all_tracks by playlist name, then by position for the "All Tracks" tab
         sorted_all_tracks = sorted(
             all_tracks,
             key=lambda x: (x.get('playlist', ''), x.get('position', 999))
         )
+
+        # Build playlist name -> Spotify URL mapping
+        playlist_urls = {}
+        for track in all_tracks:
+            pl_name = track.get('playlist', '')
+            pl_id = track.get('playlist_id', '')
+            if pl_name and pl_id and pl_name not in playlist_urls:
+                playlist_urls[pl_name] = f'https://open.spotify.com/playlist/{pl_id}'
 
         # Load and render template
         with open(self.template_path, 'r') as f:
@@ -59,8 +74,10 @@ class DashboardGenerator:
             theme=config.SPOTIFY_THEME,
             generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             analytics=analytics,
+            playlist_analytics=playlist_analytics,
             tracks_by_playlist=tracks_by_playlist,
             all_tracks=sorted_all_tracks,
+            playlist_urls=playlist_urls,
             format_track_row=self._format_track_row,
             format_track_row_with_playlist=self._format_track_row_with_playlist
         )
@@ -87,11 +104,22 @@ class DashboardGenerator:
 
         # Summary stats
         playlists = set(t.get('playlist', '') for t in tracks)
+
+        # Count unique artists across all tracks
+        all_artists = set()
+        for track in tracks:
+            artists = track.get('artists', [])
+            if isinstance(artists, list):
+                for artist in artists:
+                    if isinstance(artist, dict) and artist.get('name'):
+                        all_artists.add(artist.get('name'))
+
         analytics['summary'] = {
             'total_tracks': len(tracks),
             'total_playlists': len(playlists),
             'playlist_names': sorted(playlists),
-            'unique_tracks': len(set((t.get('track_name'), t.get('artist')) for t in tracks))
+            'unique_tracks': len(set((t.get('track_name'), t.get('artist')) for t in tracks)),
+            'unique_artists': len(all_artists)
         }
 
         # Top artists across all playlists
@@ -108,6 +136,9 @@ class DashboardGenerator:
         # Explicit content analysis
         analytics['explicit_stats'] = self._analyze_explicit(tracks)
 
+        # Genre analysis
+        analytics['genre_stats'] = self._analyze_genres(tracks)
+
         # Per-playlist stats
         analytics['playlist_stats'] = self._analyze_playlists(tracks)
 
@@ -118,6 +149,7 @@ class DashboardGenerator:
         artist_counts = Counter()
         artist_playlists = defaultdict(set)
         artist_urls = {}
+        artist_tracks = defaultdict(list)
 
         for track in tracks:
             playlist = track.get('playlist', 'Unknown')
@@ -133,16 +165,23 @@ class DashboardGenerator:
                             artist_playlists[name].add(playlist)
                             if url and name not in artist_urls:
                                 artist_urls[name] = url
+                            artist_tracks[name].append({
+                                'track_name': track.get('track_name', ''),
+                                'playlist': playlist,
+                                'spotify_url': track.get('spotify_url', ''),
+                                'popularity': track.get('popularity', 0)
+                            })
 
-        # Top 15 artists
+        # Top 20 artists
         top_artists = []
-        for name, count in artist_counts.most_common(15):
+        for name, count in artist_counts.most_common(20):
             top_artists.append({
                 'name': name,
                 'count': count,
                 'playlists': len(artist_playlists[name]),
                 'playlist_names': sorted(artist_playlists[name]),
-                'url': artist_urls.get(name, '')
+                'url': artist_urls.get(name, ''),
+                'tracks': artist_tracks.get(name, [])
             })
 
         # Artists on 3+ playlists
@@ -152,7 +191,8 @@ class DashboardGenerator:
                 'count': artist_counts[name],
                 'playlists': len(playlists),
                 'playlist_names': sorted(playlists),
-                'url': artist_urls.get(name, '')
+                'url': artist_urls.get(name, ''),
+                'tracks': artist_tracks.get(name, [])
             }
             for name, playlists in artist_playlists.items()
             if len(playlists) >= 3
@@ -162,6 +202,41 @@ class DashboardGenerator:
         return {
             'top_artists': top_artists,
             'multi_playlist_artists': multi_playlist[:10]
+        }
+
+    def _analyze_genres(self, tracks: List[Dict]) -> Dict:
+        """Analyze genre frequency and cross-playlist presence"""
+        genre_counts = Counter()
+        genre_playlists = defaultdict(set)
+        genre_tracks = defaultdict(list)
+
+        for track in tracks:
+            playlist = track.get('playlist', 'Unknown')
+            for genre in track.get('genres', []):
+                if genre:
+                    genre_counts[genre] += 1
+                    genre_playlists[genre].add(playlist)
+                    genre_tracks[genre].append({
+                        'track_name': track.get('track_name', ''),
+                        'artist': track.get('artist', ''),
+                        'playlist': playlist,
+                        'spotify_url': track.get('spotify_url', ''),
+                        'popularity': track.get('popularity', 0)
+                    })
+
+        top_genres = []
+        for genre, count in genre_counts.most_common(20):
+            top_genres.append({
+                'name': genre,
+                'count': count,
+                'playlists': len(genre_playlists[genre]),
+                'playlist_names': sorted(genre_playlists[genre]),
+                'tracks': genre_tracks.get(genre, [])
+            })
+
+        return {
+            'top_genres': top_genres,
+            'total_unique_genres': len(genre_counts)
         }
 
     def _analyze_overlap(self, tracks: List[Dict]) -> Dict:
@@ -199,17 +274,34 @@ class DashboardGenerator:
         # USA vs Global comparison for Songs
         usa_songs = set()
         global_songs = set()
+        songs_data = {}
         for track in tracks:
             key = (track.get('track_name', ''), track.get('artist', ''))
             playlist = track.get('playlist', '')
             if 'USA' in playlist and 'Songs' in playlist:
                 usa_songs.add(key)
+                if key not in songs_data:
+                    songs_data[key] = track
             elif 'Global' in playlist and 'Songs' in playlist:
                 global_songs.add(key)
+                if key not in songs_data:
+                    songs_data[key] = track
 
         usa_only = usa_songs - global_songs
         global_only = global_songs - usa_songs
         both = usa_songs & global_songs
+
+        def _track_list(keys):
+            result = []
+            for key in sorted(keys, key=lambda k: songs_data.get(k, {}).get('position', 999)):
+                t = songs_data.get(key, {})
+                result.append({
+                    'track_name': t.get('track_name', key[0]),
+                    'artist': t.get('artist', key[1]),
+                    'spotify_url': t.get('spotify_url', ''),
+                    'position': t.get('position', 0)
+                })
+            return result
 
         return {
             'multi_chart_tracks': overlap_tracks[:20],
@@ -218,7 +310,10 @@ class DashboardGenerator:
                 'global_only': len(global_only),
                 'both': len(both),
                 'usa_total': len(usa_songs),
-                'global_total': len(global_songs)
+                'global_total': len(global_songs),
+                'usa_only_tracks': _track_list(usa_only),
+                'global_only_tracks': _track_list(global_only),
+                'both_tracks': _track_list(both)
             }
         }
 
@@ -299,6 +394,93 @@ class DashboardGenerator:
             }
 
         return stats
+
+    def _calculate_playlist_analytics(self, tracks: List[Dict], playlist_name: str) -> Dict:
+        """Calculate analytics for a single playlist (for tab-specific insights)"""
+        analytics = {}
+
+        # Top artists for this playlist (calculate first to get unique count)
+        artist_counts = Counter()
+        artist_urls = {}
+        artist_tracks = defaultdict(list)
+
+        for track in tracks:
+            artists = track.get('artists', [])
+            if isinstance(artists, list):
+                for artist in artists:
+                    if isinstance(artist, dict):
+                        name = artist.get('name', '')
+                        url = artist.get('url', '')
+                        if name:
+                            artist_counts[name] += 1
+                            if url and name not in artist_urls:
+                                artist_urls[name] = url
+                            artist_tracks[name].append({
+                                'track_name': track.get('track_name', ''),
+                                'spotify_url': track.get('spotify_url', ''),
+                                'popularity': track.get('popularity', 0)
+                            })
+
+        # Summary stats for this playlist
+        pops = [t.get('popularity', 0) for t in tracks if t.get('popularity')]
+        explicit_count = sum(1 for t in tracks if t.get('explicit'))
+
+        analytics['summary'] = {
+            'track_count': len(tracks),
+            'unique_artists': len(artist_counts),
+            'avg_popularity': sum(pops) / len(pops) if pops else 0,
+            'max_popularity': max(pops) if pops else 0,
+            'min_popularity': min(pops) if pops else 0,
+            'explicit_count': explicit_count,
+            'explicit_percentage': (explicit_count / len(tracks) * 100) if tracks else 0
+        }
+
+        analytics['top_artists'] = [
+            {
+                'name': name,
+                'count': count,
+                'url': artist_urls.get(name, ''),
+                'tracks': artist_tracks.get(name, [])
+            }
+            for name, count in artist_counts.most_common(10)
+        ]
+
+        # Top genres for this playlist
+        genre_counts = Counter()
+        genre_tracks = defaultdict(list)
+        for track in tracks:
+            for genre in track.get('genres', []):
+                if genre:
+                    genre_counts[genre] += 1
+                    genre_tracks[genre].append({
+                        'track_name': track.get('track_name', ''),
+                        'artist': track.get('artist', ''),
+                        'spotify_url': track.get('spotify_url', ''),
+                        'popularity': track.get('popularity', 0)
+                    })
+        analytics['top_genres'] = [
+            {'name': genre, 'count': count, 'tracks': genre_tracks.get(genre, [])}
+            for genre, count in genre_counts.most_common(10)
+        ]
+        analytics['summary']['unique_genres'] = len(genre_counts)
+
+        # Popularity histogram (5 dynamic buckets based on actual range)
+        analytics['popularity_histogram'] = self._build_histogram(pops)
+
+        # Top track (most popular)
+        if tracks:
+            top_track = max(tracks, key=lambda x: x.get('popularity') or 0)
+            analytics['top_track'] = {
+                'name': top_track.get('track_name', ''),
+                'artist': top_track.get('artist', ''),
+                'popularity': top_track.get('popularity', 0),
+                'spotify_url': top_track.get('spotify_url', ''),
+                'album_image': top_track.get('album_image', '')
+            }
+        else:
+            analytics['top_track'] = None
+
+        return analytics
 
     def _group_by_playlist(self, tracks: List[Dict]) -> Dict[str, List[Dict]]:
         """Group tracks by playlist name"""
@@ -383,6 +565,47 @@ class DashboardGenerator:
         row += '</tr>'
         return row
 
+    @staticmethod
+    def _build_histogram(pops: list, num_buckets: int = 5) -> list:
+        """Build histogram buckets dynamically based on the actual popularity range."""
+        if not pops:
+            return []
+
+        lo = min(pops)
+        hi = max(pops)
+
+        # If all values identical, return a single bucket
+        if lo == hi:
+            return [{'label': str(lo), 'min': lo, 'max': hi, 'count': len(pops), 'pct': 100}]
+
+        span = hi - lo
+        step = span / num_buckets
+
+        buckets = []
+        for i in range(num_buckets):
+            b_min = lo + i * step
+            b_max = lo + (i + 1) * step
+            label_min = int(round(b_min)) if i > 0 else int(b_min)
+            label_max = int(round(b_max))
+            buckets.append({
+                'label': f'{label_min}–{label_max}',
+                'min': b_min,
+                'max': b_max,
+                'count': 0,
+            })
+
+        for p in pops:
+            idx = int((p - lo) / step)
+            if idx >= num_buckets:
+                idx = num_buckets - 1
+            buckets[idx]['count'] += 1
+
+        max_count = max(b['count'] for b in buckets) or 1
+        for b in buckets:
+            b['pct'] = round(b['count'] / max_count * 100)
+
+        return buckets
+
     def _format_track_row_with_playlist(self, track: Dict) -> str:
         """Format a single track as an HTML table row with playlist column"""
         position = track.get('position', '')
@@ -444,7 +667,12 @@ class DashboardGenerator:
             row += f'<td>{album}</td>'
 
         # Playlist cell
-        row += f'<td style="font-size: 0.85em; color: #888;">{short_playlist}</td>'
+        playlist_id = track.get('playlist_id', '')
+        if playlist_id:
+            playlist_link = f'https://open.spotify.com/playlist/{html.escape(playlist_id)}'
+            row += f'<td style="font-size: 0.85em;"><a href="{playlist_link}" target="_blank" style="color: #888; text-decoration: none;">{short_playlist}</a></td>'
+        else:
+            row += f'<td style="font-size: 0.85em; color: #888;">{short_playlist}</td>'
 
         # Duration
         row += f'<td class="duration-cell">{duration}</td>'

@@ -2,7 +2,7 @@
 
 This document describes the system architecture and data flow for the Spotify Charts automation system.
 
-## System Architecture (v1.5.0)
+## System Architecture (v2.0.0)
 
 ### Overview
 
@@ -46,6 +46,11 @@ The system follows a **Selenium-Primary + API Enrichment** architecture:
             │       • Duration (ms and formatted)           │
             │       • Release date                          │
             │       • Album name (if missing)               │
+            ├── Genre collection (batch):                  │
+            │   ├── Collect unique artist IDs from tracks  │
+            │   ├── Batch fetch: client.artists(ids)       │
+            │   │   (up to 50 artists per API call)        │
+            │   └── Assign combined genres to each track   │
             └── Returns: Enriched track dictionaries        │
 
 ┌─────────────────────────────────────────────────────────────────┐
@@ -55,12 +60,14 @@ The system follows a **Selenium-Primary + API Enrichment** architecture:
         ├── HTML Dashboard (Analytics) ────────────────────────┐
         │   ├── Cross-playlist analytics and insights          │
         │   ├── Summary statistics (cards)                     │
-        │   ├── Top artists analysis                           │
+        │   ├── Top artists analysis (with track dropdowns)    │
+        │   ├── Top genres analysis (with track dropdowns)     │
         │   ├── Chart overlap detection                        │
-        │   ├── USA vs Global comparison                       │
-        │   ├── Popularity distribution by playlist            │
+        │   ├── USA vs Global comparison (overlay dropdowns)   │
+        │   ├── Popularity stats with range bar & histogram    │
+        │   ├── Dynamic histogram (bins based on data range)   │
         │   ├── Explicit content statistics                    │
-        │   ├── Multi-playlist artist identification           │
+        │   ├── Playlist titles hyperlinked to Spotify         │
         │   ├── Full track listings per playlist               │
         │   ├── Spotify dark theme styling                     │
         │   ├── File: spotify_charts_dashboard_YYYYMMDD_HHMMSS.html │
@@ -150,6 +157,7 @@ def get_playlist_tracks(playlist_id, playlist_name):
     'spotify_url': 'https://open.spotify.com/...',  # Track URL
     'explicit': False,                               # Explicit flag
     'playlist': 'Top Songs - USA',                   # Playlist name
+    'playlist_id': '37i9dQZEVXbLp5XoPON0wI',        # Playlist ID (for links)
 
     # FROM API ENRICHMENT (If Available):
     'popularity': 95,                                # Popularity (0-100)
@@ -159,6 +167,7 @@ def get_playlist_tracks(playlist_id, playlist_name):
     'album_image': 'https://...',                    # Album art URL
     'release_date': '2022-09-16',                    # Release date
     'preview_url': 'https://...',                    # 30s preview
+    'genres': ['pop', 'indie pop', 'alt z'],         # Genres (from Artist API)
 }
 ```
 
@@ -173,7 +182,8 @@ def get_playlist_tracks(playlist_id, playlist_name):
 **Key Methods**:
 - `get_playlist_tracks(playlist_id)`: Main entry point
 - `_get_playlist_tracks_selenium(playlist_id)`: Selenium scraping logic
-- `_enrich_tracks_with_api(tracks)`: API enrichment logic
+- `_enrich_tracks_with_api(tracks)`: API enrichment logic (includes genre fetching)
+- `_fetch_artist_genres(tracks)`: Batch genre collection from Artist API
 - `get_all_playlist_tracks(playlist_ids)`: Collect from multiple playlists
 
 **Parameters**:
@@ -208,21 +218,27 @@ def get_playlist_tracks(playlist_id, playlist_name):
 **Key Methods**:
 - `generate_dashboard()`: Main entry point - generates complete dashboard HTML
 - `_calculate_analytics()`: Orchestrates all analytics calculations
-- `_analyze_artists()`: Artist frequency and multi-playlist presence
-- `_analyze_overlap()`: Track overlap between charts
+- `_analyze_artists()`: Artist frequency, multi-playlist presence, and per-artist track details
+- `_analyze_genres()`: Genre frequency, cross-playlist presence, and per-genre track details
+- `_analyze_overlap()`: Track overlap between charts with categorized track lists
 - `_analyze_popularity()`: Popularity distribution analysis
 - `_analyze_explicit()`: Explicit content distribution
 - `_analyze_playlists()`: Per-playlist statistics
+- `_calculate_playlist_analytics()`: Per-playlist metrics including genres, histogram, and track details
+- `_build_histogram()`: Static method for dynamic histogram bin calculation based on actual data range
 - `_format_track_row()`: Formats individual tracks for table display
+- `_format_track_row_with_playlist()`: Formats tracks with playlist column (includes Spotify playlist link)
 
 **Analytics Features**:
-- Summary statistics (total tracks, playlists, unique tracks, avg popularity, explicit count)
-- Top 15 artists across all charts with track counts and chart appearances
-- Multi-playlist artists (artists appearing on 3+ charts)
+- Summary statistics (total tracks, playlists, unique tracks, average popularity, explicit count, unique genres)
+- Top 20 artists across all charts with track counts, chart appearances, and track dropdowns (top 10 per playlist)
+- Top 20 genres across all charts with track counts and track dropdowns (top 10 per playlist)
 - Chart overlap (tracks appearing on multiple playlists)
-- USA vs Global Songs comparison
-- Popularity distribution by playlist
+- USA vs Global Songs comparison with overlay dropdowns (expand without affecting container size)
+- Popularity stats per playlist: average score, range bar with average dot, dynamic histogram (5 bins)
 - Explicit content statistics with percentages
+- Playlist titles hyperlinked to their Spotify URLs
+- Playlist column in All Tracks table hyperlinked to Spotify
 - Full track listings for each playlist
 
 **Output**: Interactive HTML dashboard deployed to GitHub Pages
@@ -269,7 +285,7 @@ Your Main Folder/
 - **Problem**: Editorial playlists return 404, requiring fallback every time
 - **Result**: Extra API calls and error handling overhead
 
-### Current Architecture (v1.5.0)
+### Current Architecture (v2.0.0)
 - **Selenium First**: Always use web scraping for data collection
 - **API Second**: Only for enrichment (optional, fills missing fields)
 - **Benefits**:
@@ -376,7 +392,7 @@ Tests entire pipeline:
 1. **Caching**: Cache API enrichment data to reduce API calls
 2. **Parallel scraping**: Scrape multiple playlists simultaneously
 3. **Incremental updates**: Only scrape changed tracks
-4. **More metadata**: Add genre, mood, energy level
+4. **More metadata**: Add mood, energy level, audio features
 5. **Historical tracking**: Store track movements over time
 
 ### Known Limitations
@@ -404,6 +420,6 @@ python main.py
 
 ---
 
-**Last Updated**: 2026-01-21
-**Version**: 1.8.0
-**Architecture**: Selenium-Primary + API Enrichment + Analytics Dashboard
+**Last Updated**: 2026-02-04
+**Version**: 2.1.0
+**Architecture**: Selenium-Primary + API Enrichment (with Genre Collection) + Analytics Dashboard

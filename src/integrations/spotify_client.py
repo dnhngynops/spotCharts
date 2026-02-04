@@ -190,7 +190,64 @@ class SpotifyClient:
             enriched_tracks.append(track)
 
         print(f"   ✓ Enriched {enriched_count}/{len(tracks)} tracks successfully ({failed_count} failed)")
+
+        # Fetch and attach genre data from artist endpoints
+        print("   Fetching artist genres...")
+        artist_genres = self._fetch_artist_genres(enriched_tracks)
+        genre_count = 0
+        for track in enriched_tracks:
+            track_genres = set()
+            for artist in track.get('artists', []):
+                if isinstance(artist, dict) and artist.get('id'):
+                    genres = artist_genres.get(artist['id'], [])
+                    track_genres.update(genres)
+            track['genres'] = list(track_genres)
+            if track['genres']:
+                genre_count += 1
+        print(f"   ✓ Added genres to {genre_count}/{len(enriched_tracks)} tracks")
+
         return enriched_tracks
+
+    def _fetch_artist_genres(self, tracks: List[Dict]) -> Dict[str, List[str]]:
+        """
+        Fetch genres for all unique artists across tracks using batch API calls.
+
+        Args:
+            tracks: List of tracks with artist information
+
+        Returns:
+            Dict mapping artist_id to list of genre strings
+        """
+        # Collect unique artist IDs
+        artist_ids = set()
+        for track in tracks:
+            for artist in track.get('artists', []):
+                if isinstance(artist, dict) and artist.get('id'):
+                    artist_ids.add(artist['id'])
+
+        if not artist_ids:
+            return {}
+
+        artist_genres = {}
+        artist_ids_list = list(artist_ids)
+
+        # Batch fetch (Spotify API supports up to 50 artists per request)
+        batch_size = 50
+        for i in range(0, len(artist_ids_list), batch_size):
+            batch = artist_ids_list[i:i + batch_size]
+            try:
+                response = self.client.artists(batch)
+                for artist_data in response.get('artists', []):
+                    if artist_data:
+                        artist_genres[artist_data['id']] = artist_data.get('genres', [])
+            except Exception as e:
+                print(f"   Warning: Failed to fetch genres for artist batch: {e}")
+                for artist_id in batch:
+                    if artist_id not in artist_genres:
+                        artist_genres[artist_id] = []
+
+        print(f"   ✓ Fetched genres for {len(artist_genres)}/{len(artist_ids)} unique artists")
+        return artist_genres
 
     def get_all_playlist_tracks(self, playlist_ids: List[str]) -> List[Dict]:
         """
@@ -210,11 +267,15 @@ class SpotifyClient:
             try:
                 playlist_name = self.get_playlist_name(playlist_id)
                 tracks = self.get_playlist_tracks(playlist_id, playlist_name)
-                
+
+                # Store playlist_id on each track for URL generation
+                for track in tracks:
+                    track['playlist_id'] = playlist_id
+
                 # Limit tracks per playlist if configured
                 if config.TABLE_CONFIG['max_tracks_per_playlist']:
                     tracks = tracks[:config.TABLE_CONFIG['max_tracks_per_playlist']]
-                
+
                 all_tracks.extend(tracks)
             except Exception as e:
                 print(f"Error fetching playlist {playlist_id}: {e}")

@@ -4,6 +4,136 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [2.1.0] - 2026-02-04
+
+### Added - Dashboard Enhancements & Playlist Linking
+
+- **Dynamic Popularity Histogram**: Histogram bins are now calculated dynamically based on actual data range
+  - New `_build_histogram()` static method replaces hardcoded 0-20/21-40/41-60/61-80/81-100 buckets
+  - Bins are evenly distributed across the actual min-max popularity range of each playlist
+  - Handles edge cases (empty data, all-identical values)
+
+- **Histogram Axis Labels**: Added labeled axes to popularity histograms
+  - Y-axis "Tracks" label (vertical text using `writing-mode: vertical-rl`)
+  - X-axis "Popularity Score" label
+  - Both labels bold (`font-weight: 600`) for readability
+
+- **Popularity Range Bar**: Visual indicator showing popularity distribution per playlist
+  - Horizontal bar spanning the full popularity range
+  - Green dot positioned at the average popularity score
+  - Min/max values displayed at each end
+
+- **Playlist Hyperlinks**: Playlist titles and table entries now link to Spotify
+  - Per-playlist tab titles hyperlinked to their Spotify playlist URL
+  - Playlist column in All Tracks table links each entry to its Spotify playlist
+  - `playlist_id` now tracked per track in data collection for URL construction
+  - `playlist_urls` mapping built and passed to template context
+
+- **Expanded Top Lists for All Tracks Tab**: Increased top lists in the global (All Tracks) view
+  - Top Artists: expanded from 15 to 20
+  - Top Genres: expanded from 10 to 20
+  - Per-playlist tabs remain at 10 each
+
+- **USA vs Global Overlay Dropdowns**: Dropdown lists now overlay the container
+  - Uses `position: absolute` with `z-index: 10` to overlay without resizing parent boxes
+  - Max height 300px with scroll for long lists
+  - Parent boxes use `overflow: visible` and `align-items: start`
+
+### Removed
+
+- **"Artists on 3+ Charts" Metric Box**: Removed from the dashboard as redundant with Top Artists section
+
+### Fixed
+
+- **Dropdown Toggle for Overlap Stats**: `toggleDropdown()` JS function now handles both `<li>` and `<div>` parent containers
+  - Added fallback: `badge.closest('li') || badge.closest('.overlap-stat')`
+  - Previously failed silently for USA vs Global overlap stat boxes which use `<div>` parents
+
+### Technical Changes
+
+- **`src/integrations/spotify_client.py`**:
+  - Added `track['playlist_id'] = playlist_id` in `get_all_playlist_tracks()` loop
+
+- **`src/reporting/dashboard_generator.py`**:
+  - Added `_build_histogram(pops, num_buckets=5)` static method for dynamic bin calculation
+  - Changed `_analyze_artists()` from `most_common(15)` to `most_common(20)`
+  - Changed `_analyze_genres()` from `most_common(10)` to `most_common(20)`
+  - Added `playlist_urls` dictionary construction and template context passing
+  - Updated `_format_track_row_with_playlist()` to render playlist cell as hyperlink
+
+- **`templates/dashboard_template.html`**:
+  - Added CSS: `.histogram-wrapper`, `.histogram-y-label`, `.histogram-x-label`, `.pop-range-bar`, `.pop-range-fill`, `.pop-range-avg`
+  - Added overlay dropdown CSS for `.overlap-stat` containers
+  - Updated `toggleDropdown()` JS with `.closest('.overlap-stat')` fallback
+  - Removed "Artists on 3+ Charts" template section
+  - Added playlist title hyperlinks with conditional `playlist_urls` mapping
+  - All Tracks tab artist/genre slices changed to `[:20]`
+
+---
+
+## [2.0.0] - 2026-02-03
+
+### Added - Genre Collection & Dashboard Analytics Enhancements
+
+- **Genre Data Collection**: Implemented genre fetching from Spotify's Artist API
+  - New `_fetch_artist_genres()` method in `SpotifyClient` uses batch API calls (up to 50 artists per request)
+  - Genres are aggregated from all artists on a track and stored as `track['genres']`
+  - Called automatically at the end of `_enrich_tracks_with_api()` enrichment pipeline
+  - ~54% genre coverage (some newer/emerging artists have empty genre arrays on Spotify)
+
+- **Genre Analytics in Dashboard**: Top genres displayed globally and per-playlist
+  - New `_analyze_genres()` method in `DashboardGenerator` with `Counter` and `defaultdict` aggregation
+  - "Unique Genres" summary card in dashboard header
+  - "Top Genres (All Charts)" section in All Tracks tab
+  - "Top Genres" section in each playlist tab
+
+- **Track Count Dropdowns**: All Top Artists and Top Genres entries have clickable track count badges
+  - Clicking the "X tracks" badge expands a dropdown showing the associated tracks
+  - Each track links to its Spotify URL
+  - Dropdown indicators (triangles) toggle on open/close
+  - `toggleDropdown()` JS function handles both `<li>` and `<div>` parent containers
+
+- **Popularity Stats Card**: Replaced "Most Popular Track" with detailed popularity statistics
+  - Shows average popularity score
+  - Includes popularity histogram with 5 buckets (0-20, 21-40, 41-60, 61-80, 81-100)
+  - CSS flexbox histogram with percentage-based bar heights
+  - Histogram data calculated in `_calculate_playlist_analytics()` per playlist
+
+- **USA vs Global Dropdown Expansion**: Overlap comparison boxes are now interactive
+  - Each box (USA Only, Both, Global Only) is clickable and expands to show track lists
+  - Track lists include song name, artist, and Spotify link
+  - Boxes expand independently without affecting sibling container sizing (`align-items: start`)
+  - Track data populated from `_analyze_overlap()` which now returns `usa_only_tracks`, `global_only_tracks`, `both_tracks`
+
+### Changed
+
+- **"Average Popularity" Label**: Renamed from "Avg Popularity" to "Average Popularity" in summary cards
+- **Dashboard Data Attributes**: All playlist tab divs now include `data-genres` attribute for genre counts
+- **`showTab()` JS**: Updated to display genre counts when switching tabs
+
+### Technical Changes
+
+- **`src/integrations/spotify_client.py`**:
+  - Added `_fetch_artist_genres(tracks)` method - collects unique artist IDs, batch-fetches via `self.client.artists(batch)`, returns `Dict[str, List[str]]`
+  - Modified `_enrich_tracks_with_api()` to call `_fetch_artist_genres()` and assign combined genres to each track
+
+- **`src/reporting/dashboard_generator.py`**:
+  - Added `_analyze_genres()` method (mirrors `_analyze_artists()` pattern)
+  - Updated `_analyze_artists()` to collect `artist_tracks` with track details per artist
+  - Updated `_calculate_analytics()` to include `genre_stats` in global analytics
+  - Updated `_calculate_playlist_analytics()` to include: `top_genres`, `unique_genres`, `artist_tracks`, `genre_tracks`, `popularity_histogram`
+  - Updated `_analyze_overlap()` to return track lists for each overlap category
+
+- **`templates/dashboard_template.html`**:
+  - Added CSS: `.histogram`, `.histogram-col`, `.histogram-bar-wrap`, `.histogram-bar`, `.dropdown-toggle`, `.track-dropdown`, overlap stat dropdown positioning
+  - Added `toggleDropdown()` JS function
+  - Added genre summary card and genre sections (global + per-playlist)
+  - Converted artist/genre list items to include nested dropdown `<ul>` elements
+  - Added histogram visualization in Popularity Stats sections
+  - Converted overlap stat boxes to clickable dropdowns
+
+---
+
 ## [1.9.0] - 2026-01-26
 
 ### Fixed - Chart Position Preservation in CI Environments

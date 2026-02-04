@@ -502,7 +502,7 @@
         }
 
         .tab-button.active {
-            background: {{ theme.surface }};
+            background: rgba(29, 185, 84, 0.1);
             color: {{ theme.primary }};
             font-weight: 600;
             border-bottom: 2px solid {{ theme.primary }};
@@ -517,9 +517,188 @@
         }
 
         .tab-panel {
+            padding-top: 20px;
+        }
+
+        /* Histogram */
+        .histogram-wrapper {
+            display: flex;
+            align-items: stretch;
+        }
+
+        .histogram-y-label {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            font-size: 0.75em;
+            font-weight: 600;
+            color: {{ theme.text_artist }};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            white-space: nowrap;
+        }
+
+        .histogram-x-label {
+            text-align: center;
+            font-size: 0.75em;
+            font-weight: 600;
+            color: {{ theme.text_artist }};
+            margin-top: 8px;
+        }
+
+        .histogram {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .histogram-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        .histogram-count {
+            font-size: 0.8em;
+            color: {{ theme.text_artist }};
+            margin-bottom: 4px;
+        }
+
+        .histogram-bar-wrap {
+            width: 100%;
+            height: 100px;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        .histogram-bar {
+            width: 100%;
+            background: {{ theme.primary }};
+            border-radius: 3px 3px 0 0;
+            min-height: 2px;
+        }
+
+        .histogram-label {
+            font-size: 0.7em;
+            color: {{ theme.text_artist }};
+            margin-top: 4px;
+        }
+
+        /* Popularity range bar */
+        .pop-range-bar {
+            position: relative;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin: 12px 0 4px;
+        }
+
+        .pop-range-fill {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            background: rgba(29, 185, 84, 0.3);
+            border-radius: 4px;
+        }
+
+        .pop-range-avg {
+            position: absolute;
+            top: -3px;
+            width: 14px;
+            height: 14px;
+            background: {{ theme.primary }};
+            border-radius: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* Overlap stat dropdown fix */
+        .overlap-stats {
+            align-items: start;
+        }
+
+        .overlap-stat {
+            position: relative;
+            overflow: visible;
+        }
+
+        .overlap-stat .track-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 10;
             background: {{ theme.surface }};
-            border-radius: 0 12px 12px 12px;
-            padding: 30px;
+            border-radius: 0 0 8px 8px;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .overlap-stat .track-dropdown li {
+            padding: 6px 8px;
+        }
+
+        /* Track Dropdown */
+        .dropdown-toggle {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .dropdown-toggle:hover {
+            background: rgba(29, 185, 84, 0.35);
+        }
+
+        .dropdown-toggle::after {
+            content: ' ▾';
+            font-size: 0.75em;
+        }
+
+        .dropdown-toggle.open::after {
+            content: ' ▴';
+        }
+
+        .track-dropdown {
+            display: none;
+            margin-top: 8px;
+            padding: 0;
+            list-style: none;
+        }
+
+        .track-dropdown.open {
+            display: block;
+        }
+
+        .track-dropdown li {
+            padding: 6px 0 6px 30px;
+            font-size: 0.85em;
+            color: {{ theme.text_artist }};
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .track-dropdown li:last-child {
+            border-bottom: none;
+        }
+
+        .track-dropdown .dropdown-track-name {
+            color: {{ theme.text_track }};
+        }
+
+        .track-dropdown .dropdown-track-name a {
+            color: {{ theme.text_track }};
+            text-decoration: none;
+        }
+
+        .track-dropdown .dropdown-track-name a:hover {
+            color: {{ theme.primary }};
+        }
+
+        .track-dropdown .dropdown-track-meta {
+            font-size: 0.9em;
+            color: {{ theme.text_artist }};
         }
 
         /* Responsive */
@@ -546,154 +725,31 @@
             <p class="subtitle">Cross-Playlist Analytics &amp; Insights</p>
         </header>
 
-        <!-- Summary Cards -->
+        <!-- Summary Cards (Dynamic - updates based on selected tab) -->
         <div class="summary-cards">
             <div class="summary-card">
-                <div class="value">{{ analytics.summary.total_tracks }}</div>
-                <div class="label">Total Tracks</div>
+                <div class="value" id="card-tracks">{{ analytics.summary.total_tracks }}</div>
+                <div class="label" id="card-tracks-label">Total Tracks</div>
             </div>
             <div class="summary-card">
-                <div class="value">{{ analytics.summary.total_playlists }}</div>
-                <div class="label">Playlists</div>
+                <div class="value" id="card-artists">{{ analytics.summary.unique_artists }}</div>
+                <div class="label">Unique Artists</div>
             </div>
             <div class="summary-card">
-                <div class="value">{{ analytics.summary.unique_tracks }}</div>
-                <div class="label">Unique Tracks</div>
+                <div class="value" id="card-popularity">{{ "%.1f"|format(analytics.popularity_stats.overall.avg) }}</div>
+                <div class="label">Average Popularity</div>
             </div>
             <div class="summary-card">
-                <div class="value">{{ "%.1f"|format(analytics.popularity_stats.overall.avg) }}</div>
-                <div class="label">Avg Popularity</div>
+                <div class="value" id="card-genres">{{ analytics.genre_stats.total_unique_genres }}</div>
+                <div class="label">Unique Genres</div>
             </div>
             <div class="summary-card">
-                <div class="value">{{ analytics.explicit_stats.total_explicit }}</div>
-                <div class="label">Explicit Tracks</div>
+                <div class="value" id="card-explicit">{{ analytics.explicit_stats.total_explicit }}</div>
+                <div class="label" id="card-explicit-label">Explicit Tracks</div>
             </div>
         </div>
 
-        <!-- Analytics Grid -->
-        <div class="analytics-grid">
-            <!-- Top Artists -->
-            <div class="section">
-                <h2 class="section-title">Top Artists (All Charts)</h2>
-                <ul class="artist-list">
-                    {% for artist in analytics.top_artists[:10] %}
-                    <li class="artist-item">
-                        <span class="artist-rank">{{ loop.index }}</span>
-                        <span class="artist-name">
-                            {% if artist.url %}
-                            <a href="{{ artist.url }}" target="_blank">{{ artist.name }}</a>
-                            {% else %}
-                            {{ artist.name }}
-                            {% endif %}
-                        </span>
-                        <span class="artist-stats">
-                            <span class="stat-badge">{{ artist.count }} tracks</span>
-                            <span>{{ artist.playlists }} charts</span>
-                        </span>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-
-            <!-- Chart Overlap -->
-            <div class="section">
-                <h2 class="section-title">USA vs Global (Songs)</h2>
-                <div class="overlap-stats">
-                    <div class="overlap-stat">
-                        <div class="number">{{ analytics.chart_overlap.usa_global_comparison.usa_only }}</div>
-                        <div class="label">USA Only</div>
-                    </div>
-                    <div class="overlap-stat">
-                        <div class="number">{{ analytics.chart_overlap.usa_global_comparison.both }}</div>
-                        <div class="label">Both Charts</div>
-                    </div>
-                    <div class="overlap-stat">
-                        <div class="number">{{ analytics.chart_overlap.usa_global_comparison.global_only }}</div>
-                        <div class="label">Global Only</div>
-                    </div>
-                </div>
-
-                <h3 style="color: {{ theme.text_secondary }}; font-size: 1em; margin: 20px 0 15px;">Tracks on Multiple Charts</h3>
-                {% for track in analytics.chart_overlap.multi_chart_tracks[:8] %}
-                <div class="overlap-track">
-                    {% if track.album_image %}
-                    <img src="{{ track.album_image }}" alt="">
-                    {% endif %}
-                    <div class="overlap-track-info">
-                        <div class="overlap-track-name">
-                            {% if track.spotify_url %}
-                            <a href="{{ track.spotify_url }}" target="_blank">{{ track.track_name }}</a>
-                            {% else %}
-                            {{ track.track_name }}
-                            {% endif %}
-                        </div>
-                        <div class="overlap-track-artist">{{ track.artist }}</div>
-                        <div class="overlap-charts">
-                            {% for app in track.appearances %}
-                            <span class="chart-tag">#{{ app.position }} {{ app.playlist|replace('Top ', '')|replace(' - ', ' ') }}</span>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Popularity by Playlist -->
-        <div class="section">
-            <h2 class="section-title">Popularity by Playlist</h2>
-            <div class="popularity-grid">
-                {% for playlist, stats in analytics.popularity_stats.by_playlist.items() %}
-                <div class="popularity-card">
-                    <div class="playlist-name">{{ playlist }}</div>
-                    <div class="avg-value">{{ "%.1f"|format(stats.avg) }}</div>
-                    <div class="range">Range: {{ stats.min }} - {{ stats.max }}</div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Explicit Content -->
-        <div class="section">
-            <h2 class="section-title">Explicit Content by Playlist</h2>
-            <div class="explicit-grid">
-                {% for playlist, stats in analytics.explicit_stats.by_playlist.items() %}
-                <div class="explicit-card">
-                    <div class="playlist-name">{{ playlist }}</div>
-                    <div class="explicit-bar-container">
-                        <div class="explicit-bar" style="width: {{ stats.percentage }}%;"></div>
-                    </div>
-                    <div class="percentage">{{ "%.0f"|format(stats.percentage) }}% ({{ stats.explicit }}/{{ stats.total }})</div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <!-- Multi-Playlist Artists -->
-        {% if analytics.multi_playlist_artists %}
-        <div class="section">
-            <h2 class="section-title">Artists on 3+ Charts</h2>
-            <ul class="artist-list">
-                {% for artist in analytics.multi_playlist_artists %}
-                <li class="artist-item">
-                    <span class="artist-name">
-                        {% if artist.url %}
-                        <a href="{{ artist.url }}" target="_blank">{{ artist.name }}</a>
-                        {% else %}
-                        {{ artist.name }}
-                        {% endif %}
-                    </span>
-                    <span class="artist-stats">
-                        <span class="stat-badge">{{ artist.count }} tracks</span>
-                        <span class="stat-badge">{{ artist.playlists }} charts</span>
-                    </span>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-
-        <!-- Playlist Tables with Tabs -->
+        <!-- Tabs Container -->
         <div class="tabs-container">
             <div class="tab-buttons">
                 <button class="tab-button active" onclick="showTab('all-tracks')">All Tracks</button>
@@ -703,62 +759,371 @@
             </div>
 
             <!-- All Tracks Tab -->
-            <div id="all-tracks" class="tab-content active">
+            <div id="all-tracks" class="tab-content active"
+                 data-tracks="{{ analytics.summary.total_tracks }}"
+                 data-artists="{{ analytics.summary.unique_artists }}"
+                 data-popularity="{{ "%.1f"|format(analytics.popularity_stats.overall.avg) }}"
+                 data-genres="{{ analytics.genre_stats.total_unique_genres }}"
+                 data-explicit="{{ analytics.explicit_stats.total_explicit }}"
+                 data-tracks-label="Total Tracks"
+                 data-explicit-label="Explicit Tracks">
                 <div class="tab-panel">
-                    <div class="playlist-header">
-                        <h2 class="playlist-title">All Tracks</h2>
-                        <span class="playlist-meta">{{ all_tracks|length }} tracks</span>
-                    </div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Track</th>
-                                <th>Album</th>
-                                <th>Playlist</th>
-                                <th>🕐</th>
-                                <th>Popularity</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for track in all_tracks %}
-                            {{ format_track_row_with_playlist(track)|safe }}
+                    <!-- Analytics Grid (Global) -->
+                    <div class="analytics-grid">
+                        <!-- Top Artists -->
+                        <div class="section">
+                            <h2 class="section-title">Top Artists (All Charts)</h2>
+                            <ul class="artist-list">
+                                {% for artist in analytics.top_artists[:20] %}
+                                <li>
+                                    <div class="artist-item">
+                                        <span class="artist-rank">{{ loop.index }}</span>
+                                        <span class="artist-name">
+                                            {% if artist.url %}
+                                            <a href="{{ artist.url }}" target="_blank">{{ artist.name }}</a>
+                                            {% else %}
+                                            {{ artist.name }}
+                                            {% endif %}
+                                        </span>
+                                        <span class="artist-stats">
+                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ artist.count }} tracks</span>
+                                            <span>{{ artist.playlists }} charts</span>
+                                        </span>
+                                    </div>
+                                    <ul class="track-dropdown">
+                                        {% for t in artist.tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.playlist|replace('Top ', '')|replace(' - ', ' ') }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- Top Genres (Global) -->
+                        {% if analytics.genre_stats.top_genres %}
+                        <div class="section">
+                            <h2 class="section-title">Top Genres (All Charts)</h2>
+                            <ul class="artist-list">
+                                {% for genre in analytics.genre_stats.top_genres %}
+                                <li>
+                                    <div class="artist-item">
+                                        <span class="artist-rank">{{ loop.index }}</span>
+                                        <span class="artist-name">{{ genre.name }}</span>
+                                        <span class="artist-stats">
+                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ genre.count }} tracks</span>
+                                            <span>{{ genre.playlists }} charts</span>
+                                        </span>
+                                    </div>
+                                    <ul class="track-dropdown">
+                                        {% for t in genre.tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}{% if t.playlist %}, {{ t.playlist|replace('Top ', '')|replace(' - ', ' ') }}{% endif %}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <!-- Chart Overlap -->
+                        <div class="section">
+                            <h2 class="section-title">USA vs Global (Songs)</h2>
+                            <div class="overlap-stats">
+                                <div class="overlap-stat">
+                                    <div class="number dropdown-toggle" onclick="toggleDropdown(this)">{{ analytics.chart_overlap.usa_global_comparison.usa_only }}</div>
+                                    <div class="label">USA Only</div>
+                                    <ul class="track-dropdown" style="text-align: left;">
+                                        {% for t in analytics.chart_overlap.usa_global_comparison.usa_only_tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="overlap-stat">
+                                    <div class="number dropdown-toggle" onclick="toggleDropdown(this)">{{ analytics.chart_overlap.usa_global_comparison.both }}</div>
+                                    <div class="label">Both Charts</div>
+                                    <ul class="track-dropdown" style="text-align: left;">
+                                        {% for t in analytics.chart_overlap.usa_global_comparison.both_tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="overlap-stat">
+                                    <div class="number dropdown-toggle" onclick="toggleDropdown(this)">{{ analytics.chart_overlap.usa_global_comparison.global_only }}</div>
+                                    <div class="label">Global Only</div>
+                                    <ul class="track-dropdown" style="text-align: left;">
+                                        {% for t in analytics.chart_overlap.usa_global_comparison.global_only_tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <h3 style="color: {{ theme.text_secondary }}; font-size: 1em; margin: 20px 0 15px;">Tracks on Multiple Charts</h3>
+                            {% for track in analytics.chart_overlap.multi_chart_tracks[:8] %}
+                            <div class="overlap-track">
+                                {% if track.album_image %}
+                                <img src="{{ track.album_image }}" alt="">
+                                {% endif %}
+                                <div class="overlap-track-info">
+                                    <div class="overlap-track-name">
+                                        {% if track.spotify_url %}
+                                        <a href="{{ track.spotify_url }}" target="_blank">{{ track.track_name }}</a>
+                                        {% else %}
+                                        {{ track.track_name }}
+                                        {% endif %}
+                                    </div>
+                                    <div class="overlap-track-artist">{{ track.artist }}</div>
+                                    <div class="overlap-charts">
+                                        {% for app in track.appearances %}
+                                        <span class="chart-tag">#{{ app.position }} {{ app.playlist|replace('Top ', '')|replace(' - ', ' ') }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
                             {% endfor %}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
+
+                    <!-- Popularity by Playlist -->
+                    <div class="section">
+                        <h2 class="section-title">Popularity by Playlist</h2>
+                        <div class="popularity-grid">
+                            {% for playlist, stats in analytics.popularity_stats.by_playlist.items() %}
+                            <div class="popularity-card">
+                                <div class="playlist-name">{{ playlist }}</div>
+                                <div class="avg-value">{{ "%.1f"|format(stats.avg) }}</div>
+                                <div class="range">Range: {{ stats.min }} - {{ stats.max }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Explicit Content -->
+                    <div class="section">
+                        <h2 class="section-title">Explicit Content by Playlist</h2>
+                        <div class="explicit-grid">
+                            {% for playlist, stats in analytics.explicit_stats.by_playlist.items() %}
+                            <div class="explicit-card">
+                                <div class="playlist-name">{{ playlist }}</div>
+                                <div class="explicit-bar-container">
+                                    <div class="explicit-bar" style="width: {{ stats.percentage }}%;"></div>
+                                </div>
+                                <div class="percentage">{{ "%.0f"|format(stats.percentage) }}% ({{ stats.explicit }}/{{ stats.total }})</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- All Tracks Table -->
+                    <div class="section">
+                        <div class="playlist-header">
+                            <h2 class="playlist-title">All Tracks</h2>
+                            <span class="playlist-meta">{{ all_tracks|length }} tracks</span>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Track</th>
+                                    <th>Album</th>
+                                    <th>Playlist</th>
+                                    <th>🕐</th>
+                                    <th>Popularity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for track in all_tracks %}
+                                {{ format_track_row_with_playlist(track)|safe }}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             <!-- Individual Playlist Tabs -->
             {% for playlist_name, tracks in tracks_by_playlist.items() %}
-            <div id="{{ playlist_name|replace(' ', '-')|replace('/', '-') }}" class="tab-content">
+            {% set pl_analytics = playlist_analytics[playlist_name] %}
+            <div id="{{ playlist_name|replace(' ', '-')|replace('/', '-') }}" class="tab-content"
+                 data-tracks="{{ pl_analytics.summary.track_count }}"
+                 data-artists="{{ pl_analytics.summary.unique_artists }}"
+                 data-popularity="{{ "%.1f"|format(pl_analytics.summary.avg_popularity) }}"
+                 data-genres="{{ pl_analytics.summary.unique_genres }}"
+                 data-explicit="{{ pl_analytics.summary.explicit_count }}"
+                 data-tracks-label="Tracks"
+                 data-explicit-label="Explicit Tracks">
                 <div class="tab-panel">
-                    <div class="playlist-header">
-                        <h2 class="playlist-title">{{ playlist_name }}</h2>
-                        <span class="playlist-meta">{{ tracks|length }} tracks</span>
+                    <!-- Analytics Grid (Playlist-specific) -->
+                    <div class="analytics-grid">
+                        <!-- Top Artists for this playlist -->
+                        <div class="section">
+                            <h2 class="section-title">Top Artists</h2>
+                            <ul class="artist-list">
+                                {% for artist in pl_analytics.top_artists[:10] %}
+                                <li>
+                                    <div class="artist-item">
+                                        <span class="artist-rank">{{ loop.index }}</span>
+                                        <span class="artist-name">
+                                            {% if artist.url %}
+                                            <a href="{{ artist.url }}" target="_blank">{{ artist.name }}</a>
+                                            {% else %}
+                                            {{ artist.name }}
+                                            {% endif %}
+                                        </span>
+                                        <span class="artist-stats">
+                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ artist.count }} tracks</span>
+                                        </span>
+                                    </div>
+                                    <ul class="track-dropdown">
+                                        {% for t in artist.tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- Top Genres for this playlist -->
+                        {% if pl_analytics.top_genres %}
+                        <div class="section">
+                            <h2 class="section-title">Top Genres</h2>
+                            <ul class="artist-list">
+                                {% for genre in pl_analytics.top_genres %}
+                                <li>
+                                    <div class="artist-item">
+                                        <span class="artist-rank">{{ loop.index }}</span>
+                                        <span class="artist-name">{{ genre.name }}</span>
+                                        <span class="artist-stats">
+                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ genre.count }} tracks</span>
+                                        </span>
+                                    </div>
+                                    <ul class="track-dropdown">
+                                        {% for t in genre.tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <!-- Popularity Stats for this playlist -->
+                        <div class="section" style="display: flex; flex-direction: column;">
+                            <h2 class="section-title">Popularity Stats</h2>
+                            <div style="text-align: center;">
+                                <div style="font-size: 3em; font-weight: 700; color: {{ theme.primary }};">{{ "%.1f"|format(pl_analytics.summary.avg_popularity) }}</div>
+                                <div style="color: {{ theme.text_artist }};">Average Popularity</div>
+                                {% set range_span = pl_analytics.summary.max_popularity - pl_analytics.summary.min_popularity %}
+                                {% set avg_pct = ((pl_analytics.summary.avg_popularity - pl_analytics.summary.min_popularity) / range_span * 100) if range_span > 0 else 50 %}
+                                <div class="pop-range-bar">
+                                    <div class="pop-range-fill" style="left: 0; width: 100%;"></div>
+                                    <div class="pop-range-avg" style="left: {{ avg_pct }}%;"></div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8em; color: {{ theme.text_artist }};">
+                                    <span>{{ pl_analytics.summary.min_popularity }}</span>
+                                    <span>Range: {{ pl_analytics.summary.min_popularity }} – {{ pl_analytics.summary.max_popularity }}</span>
+                                    <span>{{ pl_analytics.summary.max_popularity }}</span>
+                                </div>
+                            </div>
+                            <div class="histogram-wrapper" style="margin-top: auto;">
+                                <div class="histogram-y-label">Tracks</div>
+                                <div style="flex: 1;">
+                                    <div class="histogram">
+                                        {% for bucket in pl_analytics.popularity_histogram %}
+                                        <div class="histogram-col">
+                                            <div class="histogram-count">{{ bucket.count }}</div>
+                                            <div class="histogram-bar-wrap">
+                                                <div class="histogram-bar" style="height: {{ bucket.pct }}%;"></div>
+                                            </div>
+                                            <div class="histogram-label">{{ bucket.label }}</div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="histogram-x-label">Popularity Score</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Track</th>
-                                <th>Album</th>
-                                <th>🕐</th>
-                                <th>Popularity</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for track in tracks %}
-                            {{ format_track_row(track)|safe }}
-                            {% endfor %}
-                        </tbody>
-                    </table>
+
+                    <!-- Tracks Table -->
+                    <div class="section">
+                        <div class="playlist-header">
+                            <h2 class="playlist-title">
+                                {% if playlist_urls and playlist_urls[playlist_name] %}
+                                <a href="{{ playlist_urls[playlist_name] }}" target="_blank" style="color: {{ theme.text_secondary }}; text-decoration: none;">{{ playlist_name }}</a>
+                                {% else %}
+                                {{ playlist_name }}
+                                {% endif %}
+                            </h2>
+                            <span class="playlist-meta">{{ tracks|length }} tracks</span>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Track</th>
+                                    <th>Album</th>
+                                    <th>🕐</th>
+                                    <th>Popularity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for track in tracks %}
+                                {{ format_track_row(track)|safe }}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
             {% endfor %}
         </div>
 
         <script>
+            function toggleDropdown(badge) {
+                badge.classList.toggle('open');
+                var parent = badge.closest('li') || badge.closest('.overlap-stat');
+                var dropdown = parent.querySelector('.track-dropdown');
+                dropdown.classList.toggle('open');
+            }
+
             function showTab(tabId) {
                 // Hide all tab contents
                 document.querySelectorAll('.tab-content').forEach(content => {
@@ -771,10 +1136,20 @@
                 });
 
                 // Show selected tab content
-                document.getElementById(tabId).classList.add('active');
+                const selectedTab = document.getElementById(tabId);
+                selectedTab.classList.add('active');
 
                 // Add active class to clicked button
                 event.target.classList.add('active');
+
+                // Update summary cards based on selected tab's data attributes
+                document.getElementById('card-tracks').textContent = selectedTab.dataset.tracks;
+                document.getElementById('card-tracks-label').textContent = selectedTab.dataset.tracksLabel;
+                document.getElementById('card-artists').textContent = selectedTab.dataset.artists;
+                document.getElementById('card-popularity').textContent = selectedTab.dataset.popularity;
+                document.getElementById('card-genres').textContent = selectedTab.dataset.genres;
+                document.getElementById('card-explicit').textContent = selectedTab.dataset.explicit;
+                document.getElementById('card-explicit-label').textContent = selectedTab.dataset.explicitLabel;
             }
         </script>
 
