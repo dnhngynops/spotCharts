@@ -106,9 +106,16 @@ jobs:
       - name: Run Spotify Charts automation
         run: |
           echo "Starting Spotify Charts automation..."
+          echo "Commit (code being run): $(git rev-parse HEAD)"
           echo "Timezone: $(TZ='America/Los_Angeles' date '+%Y-%m-%d %H:%M:%S %Z')"
           echo "Chrome version: $(google-chrome --version || chromium --version || echo 'Chrome not found')"
           python main.py
+          echo "--- Verifying output from this run ---"
+          LATEST=$(ls -t output/spotify_charts_dashboard_*.html 2>/dev/null | head -1)
+          if [ -n "$LATEST" ]; then
+            echo "Generated dashboard: $LATEST"
+            echo "File timestamp: $(stat -c '%y' "$LATEST" 2>/dev/null || stat -f '%Sm' "$LATEST" 2>/dev/null)"
+          fi
 
       - name: Debug - Show first few tracks from each playlist
         if: always()

@@ -5,11 +5,12 @@ Fallback collector that uses browser automation to extract playlist metadata
 and tracks directly from the Spotify web player. Designed for editorial
 playlists that are not available through the public Spotify Web API.
 """
+import os
+import random
 import re
 import time
 import logging
 import base64
-import os
 from datetime import datetime
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -83,12 +84,13 @@ class SeleniumSpotifyClient:
         """
         playlist_url = self._normalize_reference(playlist_id)
         # Cache-bust so Spotify/CDN serve fresh playlist data (avoids wrong order/outdated tracks in CI)
-        url_with_bust = f"{playlist_url}?_={int(time.time())}"
+        url_with_bust = f"{playlist_url}?_={int(time.time())}_{random.randint(0, 99999)}"
 
         driver = self._manager.get_driver()
         self._driver = driver
 
         self.logger.info(f"Navigating to playlist: {playlist_url}")
+        print(f"  [Cache] Loading with cache-bust URL (fresh data): {url_with_bust[:80]}...")
         driver.get(url_with_bust)
 
         self._dismiss_cookie_banner(driver)
