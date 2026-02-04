@@ -214,6 +214,20 @@ Because PST is 8 hours behind UTC:
 2. Chrome runs in headless mode (no GUI needed)
 3. Check logs for specific Selenium errors
 
+### Wrong Order or Outdated Tracks in Workflow vs Local
+
+**Problem**: The dashboard after a workflow run shows tracks in the wrong order or outdated tracks compared with running `python main.py` locally.
+
+**Cause – browser/CDN cache**: The browser (or Spotify’s CDN) can serve a **cached** version of the playlist page in CI, so the scraper gets stale HTML (wrong order, old tracks). This is not “our” caching; it’s the HTTP cache used when loading the playlist URL.
+
+**Fix in code** (already applied if you have the latest):
+- **Disable browser cache**: Chrome DevTools `Network.setCacheDisabled` is enabled when the driver starts so every page load is fresh.
+- **Cache-bust the playlist URL**: Each load uses a unique query param (e.g. `?_=timestamp`) so the request is not served from cache by URL.
+
+After pulling the latest code, re-run the workflow; you should see fresher, correctly ordered data.
+
+**Verify**: In the workflow run log, check "Run Spotify Charts automation" for `✓ Collected X tracks across 4 playlists`. Download the **debug-outputs** artifact to inspect the generated dashboard.
+
 ### WeasyPrint Library Errors
 
 **Problem**: PDF generation fails with library errors

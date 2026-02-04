@@ -167,6 +167,7 @@ class ChromeDriverManager:
 
             self._driver = Chrome(service=service, options=chrome_options)
             self.logger.info("Chrome WebDriver initialized successfully with webdriver-manager")
+            self._disable_browser_cache()
         except Exception as e:
             self.logger.warning(f"webdriver-manager failed: {e}")
             # Fallback: use undetected-chromedriver if available
@@ -187,6 +188,7 @@ class ChromeDriverManager:
                         version_main=version_to_use
                     )
                     self.logger.info(f"Chrome WebDriver initialized with undetected-chromedriver (version: {version_to_use or 'auto'})")
+                    self._disable_browser_cache()
                 except Exception as e2:
                     self.logger.error(f"Both methods failed. Last error: {e2}")
                     raise
@@ -199,6 +201,16 @@ class ChromeDriverManager:
                 )
 
         return self._driver
+
+    def _disable_browser_cache(self):
+        """Disable HTTP cache so page loads always get fresh data (avoids stale/wrong order in CI)."""
+        if self._driver is None:
+            return
+        try:
+            self._driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": True})
+            self.logger.info("Browser cache disabled (fresh page loads)")
+        except Exception as e:
+            self.logger.warning(f"Could not disable browser cache via CDP: {e}")
 
     def close(self):
         """Close the WebDriver instance"""

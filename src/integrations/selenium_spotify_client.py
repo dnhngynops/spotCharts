@@ -82,11 +82,14 @@ class SeleniumSpotifyClient:
             List of track dictionaries compatible with existing table_generator
         """
         playlist_url = self._normalize_reference(playlist_id)
+        # Cache-bust so Spotify/CDN serve fresh playlist data (avoids wrong order/outdated tracks in CI)
+        url_with_bust = f"{playlist_url}?_={int(time.time())}"
+
         driver = self._manager.get_driver()
         self._driver = driver
 
         self.logger.info(f"Navigating to playlist: {playlist_url}")
-        driver.get(playlist_url)
+        driver.get(url_with_bust)
 
         self._dismiss_cookie_banner(driver)
 
