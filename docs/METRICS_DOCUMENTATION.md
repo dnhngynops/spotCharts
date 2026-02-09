@@ -45,6 +45,10 @@ The system generates two types of reports with calculated metrics:
 | Explicit Tracks | Count of explicit-flagged tracks | Selenium scraping |
 | Unique Genres | Count of distinct genres across all tracks | Artist API batch fetch |
 
+### All Tracks Table (ranking)
+
+- **All playlists are treated the same.** Every track from every configured playlist (Top Songs USA/Global, Top Albums USA/Global, Billboard Hot 100, or any 5th playlist) is in the same pool. Tracks are deduplicated by track_id (or name+artist+URL), then re-ranked by the composite score. There is no special handling for any playlist—Billboard Hot 100 entries are re-ranked together with all other playlist entries.
+
 ### Top Artists (Global & Per-Playlist)
 
 **Calculation:**
@@ -112,9 +116,10 @@ The system generates two types of reports with calculated metrics:
 ### USA vs Global Comparison
 
 **Calculation:**
-- Compares tracks between USA Songs and Global Songs playlists
+- **USA** = any playlist whose name contains "USA" or "Billboard" (e.g. Top Songs - USA, Billboard Hot 100)
+- **Global** = any playlist whose name contains "Global" (e.g. Top Songs - Global)
 - Categorizes tracks into: USA Only, Both (overlap), Global Only
-- Identifies tracks by (track_name, artist) key pairs
+- Identifies tracks by (track_name, artist) key pairs. US-only playlists like Billboard Hot 100 are included in the USA side.
 
 **Display:**
 - Three boxes showing counts for each category

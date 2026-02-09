@@ -112,11 +112,24 @@ class DashboardGenerator:
                     if isinstance(artist, dict) and artist.get('name'):
                         all_artists.add(artist.get('name'))
 
+        # Use same deduplication key as All Tracks table (track_id or name+artist+url) so the
+        # "Unique Tracks" metric matches the number of rows in the All Tracks table.
+        _unique_keys = set()
+        for t in tracks:
+            tid = (t.get('track_id') or '').strip()
+            if tid:
+                _unique_keys.add(tid)
+            else:
+                _unique_keys.add((
+                    (t.get('track_name') or '').strip(),
+                    (t.get('artist') or '').strip(),
+                    (t.get('spotify_url') or '').strip()
+                ))
         analytics['summary'] = {
             'total_tracks': len(tracks),
             'total_playlists': len(playlists),
             'playlist_names': sorted(playlists),
-            'unique_tracks': len(set((t.get('track_name'), t.get('artist')) for t in tracks)),
+            'unique_tracks': len(_unique_keys),
             'unique_artists': len(all_artists)
         }
 
@@ -269,18 +282,21 @@ class DashboardGenerator:
 
         overlap_tracks.sort(key=lambda x: -x['num_charts'])
 
-        # USA vs Global comparison for Songs
+        # USA vs Global: USA = any playlist with "USA" in name (Top Songs USA, Billboard Hot 100, etc.)
+        # Global = any playlist with "Global" in name (Top Songs Global). US-only playlists like
+        # Billboard Hot 100 are included in the USA side even if they don't have "Songs" in the name.
         usa_songs = set()
         global_songs = set()
         songs_data = {}
         for track in tracks:
             key = (track.get('track_name', ''), track.get('artist', ''))
             playlist = track.get('playlist', '')
-            if 'USA' in playlist and 'Songs' in playlist:
+            pl_upper = playlist.upper()
+            if 'USA' in pl_upper or 'BILLBOARD' in pl_upper:  # US-only charts (Top Songs USA, Billboard Hot 100, etc.)
                 usa_songs.add(key)
                 if key not in songs_data:
                     songs_data[key] = track
-            elif 'Global' in playlist and 'Songs' in playlist:
+            elif 'GLOBAL' in pl_upper:  # Global charts (Top Songs Global, etc.)
                 global_songs.add(key)
                 if key not in songs_data:
                     songs_data[key] = track
@@ -497,6 +513,11 @@ class DashboardGenerator:
         """
         Deduplicate tracks (one row per unique track) and assign ranks using a composite score.
 
+        All playlists are treated the same: every track from every playlist (including e.g.
+        Billboard Hot 100, Top Songs USA, Top Songs Global, etc.) is in the same pool. Tracks
+        are deduplicated by track_id (or name+artist+url), then re-ranked by the composite
+        formula. There is no special handling for any playlist.
+
         Composite score uses (equal weight):
         - Number of chart appearances (more = better)
         - Average chart appearance ranking (lower position = better)
@@ -555,7 +576,8 @@ class DashboardGenerator:
             )
 
             # Normalize components to 0-100 scale (higher = better)
-            chart_norm = (num_charts / 4.0) * 100  # max 4 playlists
+            max_playlists = max(1, len(playlist_avg_pop))  # avoid div by zero
+            chart_norm = (num_charts / max_playlists) * 100
             position_norm = max(0, (51 - avg_position) / 50.0 * 100)  # lower position = higher score
             pop_norm = min(100, track_pop)
             playlist_avg_norm = min(100, playlist_avg_for_track)

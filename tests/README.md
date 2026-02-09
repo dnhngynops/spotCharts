@@ -27,7 +27,7 @@ tests/
 ## Integration Tests
 
 ### test_separate_pdfs.py
-Tests the complete PDF generation pipeline with all 4 playlists.
+Tests the complete PDF generation pipeline with all configured playlists.
 
 **Usage:**
 ```bash

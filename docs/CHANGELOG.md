@@ -4,6 +4,18 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [2.4.0] - 2026-02-09
+
+### Added - Fifth Playlist Support
+
+- **Optional fifth playlist**: Add `PLAYLIST_5_ID` to `.env` (and GitHub secret `PLAYLIST_5_ID` for CI). Pipeline uses all non-empty playlist IDs; omitting the 5th leaves behavior at 4 playlists.
+- **Config**: `src/core/config.py` – `PLAYLIST_IDS` includes `PLAYLIST_5_ID`; list is filtered to non-empty so optional playlists don’t break the run.
+- **Dashboard**: Composite rank `chart_norm` now uses dynamic playlist count (`len(playlist_avg_pop)`) instead of hardcoded 4.
+- **Workflow**: `.github/workflows/spotify-charts-automation.yml` – env and `.env` creation include `PLAYLIST_5_ID`.
+- **Docs**: SECRETS_CHECKLIST, GITHUB_ACTIONS_SETUP, README, ARCHITECTURE, tests updated for 5 playlists / variable count.
+
+---
+
 ## [2.3.0] - 2026-02-09
 
 ### Fixed - Wrong Tracks and Ranks in CI (GitHub Actions)

@@ -7,7 +7,7 @@ Use this checklist when setting up GitHub Secrets for the automation workflow.
 
 ---
 
-## ✅ Secrets to Configure (14 total)
+## ✅ Secrets to Configure (15 total; PLAYLIST_5_ID optional)
 
 ### 1. Spotify API (2 secrets)
 
@@ -21,7 +21,7 @@ Use this checklist when setting up GitHub Secrets for the automation workflow.
 
 ---
 
-### 2. Playlist IDs (4 secrets)
+### 2. Playlist IDs (5 secrets; 5th optional)
 
 - [ ] **PLAYLIST_1_ID**
   - Value: `37i9dQZEVXbLp5XoPON0wI`
@@ -38,6 +38,10 @@ Use this checklist when setting up GitHub Secrets for the automation workflow.
 - [ ] **PLAYLIST_4_ID**
   - Value: `37i9dQZEVXbJcin9K8o4a8`
   - Name: Top Albums - Global
+
+- [ ] **PLAYLIST_5_ID** (optional)
+  - Value: Your fifth playlist ID from Spotify (Share → Copy link to playlist; ID is the last part of the URL)
+  - Leave empty or omit if you only use 4 playlists
 
 ---
 
@@ -123,6 +127,7 @@ PLAYLIST_1_ID=37i9dQZEVXbLp5XoPON0wI
 PLAYLIST_2_ID=37i9dQZEVXbNG2KDcFcKOF
 PLAYLIST_3_ID=37i9dQZEVXbKCOlAmDpukL
 PLAYLIST_4_ID=37i9dQZEVXbJcin9K8o4a8
+PLAYLIST_5_ID=
 
 GOOGLE_DRIVE_CREDENTIALS={PASTE FULL JSON HERE}
 GOOGLE_DRIVE_FOLDER_ID=1cP-vP2xv30qjVJZj1gg-CmhJXEgFJ1Gj
@@ -173,7 +178,7 @@ After adding all secrets:
 ---
 
 **Next Steps**:
-1. ✅ Fill in all 14 secrets in GitHub
+1. ✅ Fill in all required secrets in GitHub (14–15 with optional PLAYLIST_5_ID)
 2. ✅ Run manual test workflow
 3. ✅ Verify reports generated and uploaded
 4. ✅ Wait for Thursday 11 PM PST automatic run

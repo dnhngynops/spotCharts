@@ -1,14 +1,14 @@
 # Spotify Charts Automation
 
-Automated system to fetch tracks from 4 editorial Spotify playlists, generate formatted reports (HTML & PDF), upload to Google Drive, and email the results.
+Automated system to fetch tracks from your chosen Spotify playlists (default 4–5 editorial), generate formatted reports (HTML & PDF), upload to Google Drive, and email the results.
 
 ## Features
 
 ### **Data Collection (v1.5.0)**
 - **Selenium Primary**: Uses web scraping as primary method for maximum reliability
 - **API Enrichment**: Spotify API adds metadata (popularity, preview URLs, album art, duration)
-- **100% Accuracy**: Collects exactly 50 tracks per playlist (all 4 playlists working perfectly)
-- **Lightning Fast**: ~8-9 seconds per playlist (~2 minutes total for 4 playlists)
+- **100% Accuracy**: Collects exactly 50 tracks per playlist (all configured playlists working perfectly)
+- **Lightning Fast**: ~8-9 seconds per playlist (~2+ minutes total depending on playlist count)
 - **Robust & Reliable**: Multiple fallback strategies prevent collection failures
 - **Headless Browser**: Runs invisibly in background with performance optimizations
 
@@ -108,7 +108,7 @@ cp .env.example .env
 ### Configuration
 
 Edit your `.env` file to specify:
-- Spotify playlist IDs (4 editorial playlists)
+- Spotify playlist IDs (4 default; optional 5th via PLAYLIST_5_ID)
 - Google Drive folder ID and credentials path
 - Email recipients and SMTP settings
 - **Report formats** (HTML, PDF, or both)
@@ -321,12 +321,12 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for planned features and development time
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Total Playlists** | 4 editorial playlists | ✅ All working |
+| **Total Playlists** | 4–5 (configurable) | ✅ All working |
 | **Tracks per Playlist** | 50/50 (100%) | ✅ Perfect accuracy |
-| **Total Tracks** | 200 tracks | ✅ Complete dataset |
-| **Collection Time** | ~2 minutes 17 seconds | ✅ Fast |
+| **Total Tracks** | 200–250 depending on playlist count | ✅ Complete dataset |
+| **Collection Time** | ~2+ minutes | ✅ Fast |
 | **Per Playlist Time** | 8-9 seconds average | ✅ Optimized |
-| **Success Rate** | 100% (4/4 playlists) | ✅ Reliable |
+| **Success Rate** | 100% | ✅ Reliable |
 | **Data Quality** | Complete metadata + URLs | ✅ Comprehensive |
 
 ### **Data Collected Per Track**

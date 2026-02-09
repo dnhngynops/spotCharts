@@ -74,6 +74,7 @@ jobs:
           PLAYLIST_2_ID: ${{ secrets.PLAYLIST_2_ID }}
           PLAYLIST_3_ID: ${{ secrets.PLAYLIST_3_ID }}
           PLAYLIST_4_ID: ${{ secrets.PLAYLIST_4_ID }}
+          PLAYLIST_5_ID: ${{ secrets.PLAYLIST_5_ID }}
         run: |
           cat > .env << EOF
           # Spotify API Configuration
@@ -85,6 +86,7 @@ jobs:
           PLAYLIST_2_ID=$PLAYLIST_2_ID
           PLAYLIST_3_ID=$PLAYLIST_3_ID
           PLAYLIST_4_ID=$PLAYLIST_4_ID
+          PLAYLIST_5_ID=$PLAYLIST_5_ID
 
           # Google Drive Configuration
           GOOGLE_DRIVE_CREDENTIALS_PATH=./credentials/google-drive-credentials.json

@@ -69,6 +69,7 @@ Add each of the following secrets one by one:
 | `PLAYLIST_2_ID` | Top Songs - Global playlist ID | `37i9dQZEVXbNG2KDcFcKOF` |
 | `PLAYLIST_3_ID` | Top Albums - USA playlist ID | `37i9dQZEVXbKCOlAmDpukL` |
 | `PLAYLIST_4_ID` | Top Albums - Global playlist ID | `37i9dQZEVXbJcin9K8o4a8` |
+| `PLAYLIST_5_ID` | Fifth playlist (optional) | Your playlist ID |
 
 #### Google Drive Configuration
 
@@ -106,7 +107,7 @@ Add each of the following secrets one by one:
 
 ## Step 3: Verify Secrets Configuration
 
-After adding all secrets, you should have **14 secrets** in total:
+After adding all secrets, you should have **14–15 secrets** (PLAYLIST_5_ID optional):
 
 1. ✅ SPOTIFY_CLIENT_ID
 2. ✅ SPOTIFY_CLIENT_SECRET
@@ -114,13 +115,14 @@ After adding all secrets, you should have **14 secrets** in total:
 4. ✅ PLAYLIST_2_ID
 5. ✅ PLAYLIST_3_ID
 6. ✅ PLAYLIST_4_ID
-7. ✅ GOOGLE_DRIVE_CREDENTIALS
-8. ✅ GOOGLE_DRIVE_FOLDER_ID
-9. ✅ EMAIL_SMTP_SERVER
-10. ✅ EMAIL_SMTP_PORT
-11. ✅ EMAIL_USERNAME
-12. ✅ EMAIL_PASSWORD
-13. ✅ EMAIL_TO
+7. ✅ PLAYLIST_5_ID (optional)
+8. ✅ GOOGLE_DRIVE_CREDENTIALS
+9. ✅ GOOGLE_DRIVE_FOLDER_ID
+10. ✅ EMAIL_SMTP_SERVER
+11. ✅ EMAIL_SMTP_PORT
+12. ✅ EMAIL_USERNAME
+13. ✅ EMAIL_PASSWORD
+14. ✅ EMAIL_TO
 
 ---
 
@@ -226,7 +228,7 @@ Because PST is 8 hours behind UTC:
 
 After pulling the latest code, re-run the workflow; you should see fresher, correctly ordered data.
 
-**Verify**: In the workflow run log, check "Run Spotify Charts automation" for `✓ Collected X tracks across 4 playlists`. Download the **debug-outputs** artifact to inspect the generated dashboard.
+**Verify**: In the workflow run log, check "Run Spotify Charts automation" for `✓ Collected X tracks across N playlists`. Download the **debug-outputs** artifact to inspect the generated dashboard.
 
 ### WeasyPrint Library Errors
 

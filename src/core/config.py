@@ -22,13 +22,16 @@ EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
 EMAIL_FROM = os.getenv('EMAIL_FROM')
 EMAIL_TO = os.getenv('EMAIL_TO', '').split(',') if os.getenv('EMAIL_TO') else []
 
-# Playlist Configuration (4 editorial playlists)
+# Playlist Configuration (editorial playlists; add PLAYLIST_6_ID, etc. in config + .env if needed)
 PLAYLIST_IDS = [
     os.getenv('PLAYLIST_1_ID'),
     os.getenv('PLAYLIST_2_ID'),
     os.getenv('PLAYLIST_3_ID'),
     os.getenv('PLAYLIST_4_ID'),
+    os.getenv('PLAYLIST_5_ID'),
 ]
+# Filter out None/empty so optional 5th+ playlists don't break the pipeline
+PLAYLIST_IDS = [pid for pid in PLAYLIST_IDS if pid and str(pid).strip()]
 
 # Table Configuration
 TABLE_CONFIG = {

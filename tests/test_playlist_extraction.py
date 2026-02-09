@@ -36,7 +36,7 @@ def main():
     print("Configuration Check:")
     print(f"  Spotify Client ID: {'✓ Configured' if config.SPOTIFY_CLIENT_ID else '✗ Missing'}")
     print(f"  Spotify Client Secret: {'✓ Configured' if config.SPOTIFY_CLIENT_SECRET else '✗ Missing'}")
-    print(f"  Playlist IDs configured: {len([p for p in config.PLAYLIST_IDS if p])}/4")
+    print(f"  Playlist IDs configured: {len([p for p in config.PLAYLIST_IDS if p])}")
     print()
     
     # Display configured playlists
@@ -56,7 +56,7 @@ def main():
     
     if not any(config.PLAYLIST_IDS):
         print("ERROR: No playlist IDs configured!")
-        print("Please set PLAYLIST_1_ID through PLAYLIST_4_ID in .env file")
+        print("Please set at least PLAYLIST_1_ID in .env file (PLAYLIST_2_ID through PLAYLIST_5_ID are optional)")
         sys.exit(1)
     
     # Initialize Spotify client
@@ -73,7 +73,7 @@ def main():
     print("=" * 80)
     print("FETCHING TRACKS FROM PLAYLISTS")
     print("=" * 80)
-    print("This may take 2-3 minutes for 4 playlists...\n")
+    print("This may take 2-3 minutes depending on number of playlists...\n")
     
     try:
         all_tracks = spotify_client.get_all_playlist_tracks(config.PLAYLIST_IDS)

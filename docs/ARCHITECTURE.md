@@ -321,11 +321,12 @@ Your Main Folder/
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
 
-# Playlists (4 editorial playlists)
+# Playlists (add PLAYLIST_5_ID, etc. for more)
 PLAYLIST_1_ID=37i9dQZEVXbLp5XoPON0wI  # Top Songs - USA
 PLAYLIST_2_ID=37i9dQZEVXbNG2KDcFcKOF  # Top Songs - Global
 PLAYLIST_3_ID=37i9dQZEVXbKCOlAmDpukL  # Top Albums - USA
 PLAYLIST_4_ID=37i9dQZEVXbJcin9K8o4a8  # Top Albums - Global
+PLAYLIST_5_ID=  # optional fifth playlist
 
 # Report formats
 GENERATE_HTML=true   # Combined HTML report
@@ -364,7 +365,7 @@ python main.py
 ```
 
 Tests entire pipeline:
-1. Collect 200 tracks (4 playlists × 50 tracks)
+1. Collect tracks (N playlists × 50 tracks each)
 2. Generate 1 HTML + 4 PDF reports
 3. Upload to Google Drive (date folder)
 4. Send email with attachments
