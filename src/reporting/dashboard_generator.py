@@ -513,11 +513,19 @@ class DashboardGenerator:
                 pops = [t.get('popularity', 0) for t in tracks if t.get('playlist') == pl and t.get('popularity')]
                 playlist_avg_pop[pl] = sum(pops) / len(pops) if pops else 0
 
-        # Group by unique track: prefer track_id, else (track_name, artist)
+        # Group by unique track: prefer track_id; else (track_name, artist, spotify_url) so we
+        # never merge two different tracks (same name+artist but different URL/album) and wrongly
+        # tag the row with a playlist the displayed track isn't on.
         groups = defaultdict(list)
         for track in tracks:
-            tid = track.get('track_id', '').strip()
-            key = tid if tid else (track.get('track_name', ''), track.get('artist', ''))
+            tid = (track.get('track_id') or '').strip()
+            if tid:
+                key = tid
+            else:
+                name = (track.get('track_name') or '').strip()
+                artist = (track.get('artist') or '').strip()
+                url = (track.get('spotify_url') or '').strip()
+                key = (name, artist, url)
             groups[key].append(track)
 
         ranked = []
@@ -539,7 +547,8 @@ class DashboardGenerator:
             # Track popularity: use max across appearances (best showing)
             track_pop = max((t.get('popularity') or 0) for t in appearances)
             # Playlist avg popularity: average of each playlist's avg popularity for playlists this track is on
-            playlists_seen = [t.get('playlist', '') for t in appearances if t.get('playlist')]
+            playlists_seen = [str(t.get('playlist', '')).strip() for t in appearances if t.get('playlist')]
+            playlists_seen = [p for p in playlists_seen if p]
             playlist_avg_for_track = (
                 sum(playlist_avg_pop.get(pl, 0) for pl in playlists_seen) / len(playlists_seen)
                 if playlists_seen else 0

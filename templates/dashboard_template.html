@@ -1426,8 +1426,9 @@
 
                     // Playlist filter (data-playlist can be comma-separated for tracks on multiple charts)
                     if (filters.playlist) {
-                        const rowPlaylists = (row.dataset.playlist || '').split(',').map(p => p.trim());
-                        if (!rowPlaylists.includes(filters.playlist)) return false;
+                        const filterPlaylist = (filters.playlist || '').trim();
+                        const rowPlaylists = (row.dataset.playlist || '').split(',').map(p => p.trim()).filter(Boolean);
+                        if (!rowPlaylists.includes(filterPlaylist)) return false;
                     }
 
                     // Genre filter
