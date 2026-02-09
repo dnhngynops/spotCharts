@@ -154,7 +154,9 @@ def main():
             )
             print("   ✓ Email sent successfully")
         except Exception as e:
+            import traceback
             print(f"   Warning: Failed to send email: {e}")
+            traceback.print_exc()
         
         # Cleanup (optional - remove local files after upload)
         # Uncomment the lines below if you want to delete local files after upload

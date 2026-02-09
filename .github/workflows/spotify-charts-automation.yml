@@ -69,6 +69,7 @@ jobs:
           EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
           EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           PLAYLIST_1_ID: ${{ secrets.PLAYLIST_1_ID }}
           PLAYLIST_2_ID: ${{ secrets.PLAYLIST_2_ID }}
@@ -97,6 +98,7 @@ jobs:
           EMAIL_SMTP_PORT=$EMAIL_SMTP_PORT
           EMAIL_USERNAME=$EMAIL_USERNAME
           EMAIL_PASSWORD=$EMAIL_PASSWORD
+          EMAIL_FROM=$EMAIL_FROM
           EMAIL_TO=$EMAIL_TO
 
           # Report Generation Configuration

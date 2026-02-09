@@ -90,9 +90,12 @@ Use this checklist when setting up GitHub Secrets for the automation workflow.
   - **For Gmail**: Use App Password (not regular password)
   - Generate at: https://myaccount.google.com/apppasswords
 
+- [ ] **EMAIL_FROM** (optional; if unset, EMAIL_USERNAME is used as sender)
+  - Value: Sender address (e.g. same as EMAIL_USERNAME)
+
 - [ ] **EMAIL_TO**
   - Value: `danbutwithanh@gmail.com`
-  - Recipient email address
+  - Recipient email address (required; if empty, no email is sent)
 
 ---
 
