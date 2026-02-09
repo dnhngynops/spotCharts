@@ -207,14 +207,10 @@ class ChromeDriverManager:
         if self._driver is None:
             return
         try:
-            # Network domain must be enabled before setCacheDisabled takes effect
-            self._driver.execute_cdp_cmd("Network.enable", {})
             self._driver.execute_cdp_cmd("Network.setCacheDisabled", {"cacheDisabled": True})
             self.logger.info("Browser cache disabled (fresh page loads)")
-            print("  [Cache] Browser cache disabled via CDP (Network.enable + setCacheDisabled)")
         except Exception as e:
             self.logger.warning(f"Could not disable browser cache via CDP: {e}")
-            print(f"  [Cache] WARNING: Could not disable cache: {e}")
 
     def close(self):
         """Close the WebDriver instance"""

@@ -4,6 +4,17 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [2.3.0] - 2026-02-09
+
+### Fixed - Wrong Tracks and Ranks in CI (GitHub Actions)
+
+- **Root cause**: In headless/CI, Spotify’s virtualized list can expose **viewport-relative** row indices (e.g. 1–15 for visible rows) instead of **chart positions** (1–50). The scraper was using DOM position for both deduplication and rank, so it often kept only ~15 tracks with wrong identities and wrong ranks.
+- **Change**: Chart **position is now derived from first-seen order** (order we see each track while scrolling top to bottom). We deduplicate by `track_id` (or URL), keep the first occurrence of each track, take the first 50 in that order, and assign positions 1–50. This matches chart order regardless of what the DOM reports.
+- **Scroll termination**: We now stop when **unique track count ≥ 50**, not only when DOM-reported position ≥ 50, so we still collect 50 tracks in CI when the DOM index is viewport-relative.
+- **Files**: `src/integrations/selenium_spotify_client.py` – `_collect_tracks()` now uses first-seen order for final track list and position assignment; scroll loop stops on `len(collected) >= 50` as well as DOM position.
+
+---
+
 ## [2.2.0] - 2026-02-04
 
 ### Added - All Tracks Deduplication & Composite Ranking

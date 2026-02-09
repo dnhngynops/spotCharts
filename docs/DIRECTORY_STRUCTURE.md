@@ -66,7 +66,7 @@ src/
 
 ## Tests (`tests/`)
 
-Test suite organized by test type:
+Test suite organized by test type. **One-off and debug tests are not kept**—delete them after use (see `docs/CONVENTIONS.md`).
 
 ```
 tests/
@@ -76,13 +76,16 @@ tests/
 │   ├── test_separate_pdfs.py      # Tests separate PDF generation per playlist
 │   └── test_final_verification.py # Comprehensive verification test
 │
-└── *.py                           # Unit and debug tests
-    ├── test_page_count.py         # PDF page count verification
-    ├── test_single_page_only.py   # Single-page PDF test
-    ├── test_blank_space_*.py      # Blank space elimination tests
-    ├── test_pdf_*.py              # Various PDF generation tests
-    ├── test_playlist_extraction.py# Playlist data extraction test
-    └── debug_*.py                 # Debug utilities
+└── *.py                           # Unit tests
+    ├── test_selenium_primary_api_enrichment.py
+    ├── test_playlist_extraction.py
+    ├── test_template_validation.py
+    ├── test_single_playlist.py
+    ├── test_single_playlist_pdf.py
+    ├── test_top_songs_usa.py
+    ├── test_long_title.py
+    ├── test_google_drive.py
+    └── test_google_drive_date_folders.py
 ```
 
 ## Documentation (`docs/`)

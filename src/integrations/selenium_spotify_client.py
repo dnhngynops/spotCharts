@@ -5,12 +5,11 @@ Fallback collector that uses browser automation to extract playlist metadata
 and tracks directly from the Spotify web player. Designed for editorial
 playlists that are not available through the public Spotify Web API.
 """
-import os
-import random
 import re
 import time
 import logging
 import base64
+import os
 from datetime import datetime
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -84,13 +83,12 @@ class SeleniumSpotifyClient:
         """
         playlist_url = self._normalize_reference(playlist_id)
         # Cache-bust so Spotify/CDN serve fresh playlist data (avoids wrong order/outdated tracks in CI)
-        url_with_bust = f"{playlist_url}?_={int(time.time())}_{random.randint(0, 99999)}"
+        url_with_bust = f"{playlist_url}?_={int(time.time())}"
 
         driver = self._manager.get_driver()
         self._driver = driver
 
         self.logger.info(f"Navigating to playlist: {playlist_url}")
-        print(f"  [Cache] Loading with cache-bust URL (fresh data): {url_with_bust[:80]}...")
         driver.get(url_with_bust)
 
         self._dismiss_cookie_banner(driver)
@@ -444,9 +442,15 @@ class SeleniumSpotifyClient:
     def _collect_tracks(
         self, driver, container, expected_count: Optional[int]
     ) -> List[Dict]:
-        """Extract all tracks using progressive scroll strategy"""
-        collected: List[Tuple[str, Dict]] = []
-        seen_keys: set[str] = set()
+        """Extract all tracks using progressive scroll strategy.
+
+        Chart position is assigned by first-seen order (order we see each track_id
+        while scrolling top to bottom). This avoids wrong tracks/ranks in CI where
+        the DOM index (aria-rowindex) can be viewport-relative (1-15) instead of
+        global chart position (1-50).
+        """
+        collected: List[Tuple[str, Dict]] = []  # (track_id or key, track) in first-seen order
+        seen_track_ids: set = set()  # Deduplicate by track_id so same track isn't added twice
 
         # Optimized scroll parameters for speed
         base_scroll_increment = 1200  # Base increment
@@ -461,7 +465,7 @@ class SeleniumSpotifyClient:
         driver.execute_script("arguments[0].scrollTop = 0;", container)
         time.sleep(2)
 
-        highest_position = [0]
+        highest_position = [0]  # Still used for logging; scroll stop uses unique count
 
         def add_tracks_from_rows(rows: Sequence) -> int:
             new_count = 0
@@ -470,10 +474,13 @@ class SeleniumSpotifyClient:
                 if not parsed:
                     continue
                 key, track, position = parsed
-                if key in seen_keys:
+                # Deduplicate by track_id (or URL/name fallback) so we keep first-seen order
+                track_id = track.get("track_id") or (track.get("spotify_url") or "").strip()
+                dedup_key = track_id or key
+                if dedup_key in seen_track_ids:
                     continue
-                seen_keys.add(key)
-                collected.append((key, track))
+                seen_track_ids.add(dedup_key)
+                collected.append((dedup_key, track))
                 if position:
                     highest_position[0] = max(highest_position[0], position)
                 new_count += 1
@@ -497,14 +504,21 @@ class SeleniumSpotifyClient:
                 )
                 break
             
-            # Check if we've reached the target position
-            if highest_position[0] >= target_position:
+            # Check if we've reached the target (by unique count or by DOM position)
+            unique_count = len(collected)
+            if unique_count >= target_position:
+                self.logger.info(
+                    f"Reached target: {unique_count} unique tracks (target {target_position}). "
+                    f"DOM highest position: {highest_position[0]}"
+                )
+                if scroll_attempt > 5:
+                    break
+            elif highest_position[0] >= target_position:
                 self.logger.info(
                     f"Reached target position {target_position}. Highest position: {highest_position[0]}, "
                     f"Total tracks: {len(collected)}"
                 )
-                # Continue for a few more scrolls to ensure we got everything
-                if scroll_attempt > 5:  # Only break if we've done some scrolling
+                if scroll_attempt > 5:
                     break
             
             time.sleep(scroll_wait)
@@ -519,12 +533,20 @@ class SeleniumSpotifyClient:
                 f"Highest position: {highest_position[0]}"
             )
 
-            # Check if we have collected all target positions (for top 50 playlists)
+            # Stop when we have enough unique tracks (reliable in CI; DOM position may be viewport-relative)
+            unique_count = len(collected)  # collected is already deduped by track_id
+            if target_position == 50 and unique_count >= 50:
+                self.logger.info(
+                    f"SUCCESS: Collected {unique_count} unique tracks (target 50). "
+                    f"Stopping early at {elapsed:.1f}s"
+                )
+                break
+            # Also stop if DOM reported position 50+ (for environments where it's correct)
             if target_position == 50:
                 collected_positions = set([t[1].get('position') for t in collected if t[1].get('position')])
-                if len(collected_positions) >= 50 and max(collected_positions) >= 50:
+                if len(collected_positions) >= 50 and max(collected_positions or [0]) >= 50:
                     self.logger.info(
-                        f"SUCCESS: Collected all 50 positions! Total tracks: {len(collected)}. "
+                        f"SUCCESS: Collected all 50 positions (from DOM). Total: {len(collected)}. "
                         f"Stopping early at {elapsed:.1f}s"
                     )
                     break
@@ -572,30 +594,25 @@ class SeleniumSpotifyClient:
             at_bottom = max_scroll > 0 and current_scroll >= max_scroll - 100
 
             # Stop if we've scrolled multiple times without finding new tracks AND we're at the bottom
-            # AND we've reached the target position
-            # This handles virtualized lists where scrollHeight keeps growing
+            # AND we've reached the target (by unique count or DOM position)
             if consecutive_no_new_tracks >= max_consecutive_no_new and at_bottom:
-                if highest_position[0] >= target_position:
+                if unique_count >= target_position or highest_position[0] >= target_position:
                     self.logger.info(
                         f"Stopped scrolling: {consecutive_no_new_tracks} consecutive scrolls "
-                        f"with no new tracks AND at bottom AND reached position {highest_position[0]}. "
-                        f"Total: {len(collected)}, Scroll: {current_scroll}/{max_scroll}"
+                        f"with no new tracks AND at bottom. Unique: {unique_count}, DOM position: {highest_position[0]}. "
+                        f"Scroll: {current_scroll}/{max_scroll}"
                     )
                     break
-                else:
-                    self.logger.info(
-                        f"At bottom but only reached position {highest_position[0]}/{target_position}. "
-                        f"Continuing to scroll more aggressively..."
-                    )
-                    # Scroll more aggressively when near bottom but haven't reached target
-                    scroll_increment[0] = 2000  # Larger scroll to trigger more loading
+                self.logger.info(
+                    f"At bottom but only {unique_count} unique tracks (target {target_position}). "
+                    f"Continuing to scroll more aggressively..."
+                )
+                scroll_increment[0] = 2000
             elif consecutive_no_new_tracks >= max_consecutive_no_new:
                 self.logger.info(
                     f"Warning: {consecutive_no_new_tracks} consecutive scrolls with no new tracks, "
-                    f"but not at bottom yet (scroll: {current_scroll}/{max_scroll}). "
-                    f"Highest position: {highest_position[0]}/{target_position}. Continuing..."
+                    f"unique: {unique_count}/{target_position}. Continuing..."
                 )
-                # Reset to base increment when not at bottom
                 scroll_increment[0] = base_scroll_increment
 
             # Ensure focused before scroll
@@ -662,103 +679,31 @@ class SeleniumSpotifyClient:
                     break
                 # If scrollHeight increased, continue scrolling (virtualized list still loading)
 
-        # Deduplicate by position, but also keep tracks without positions
-        deduplicated: Dict[int, Dict] = {}
-        tracks_without_position: List[Dict] = []
-        seen_track_ids: set = set()  # Track all seen track IDs globally
-
-        collected.sort(key=lambda item: (item[1].get("position", 9999), item[1].get("track_name", "")))
-
+        # FIX (v2.3.0): Assign chart position by first-seen order (scroll order top to bottom).
+        # In virtualized lists (e.g. CI), aria-rowindex can be viewport-relative (1-15), so
+        # position-from-DOM is wrong and we'd get wrong tracks/ranks. First-seen order
+        # matches chart order regardless of DOM.
+        tracks_ordered: List[Dict] = []
         for _, track in collected:
-            track_id = track.get("track_id")
-            position = track.get("position")
+            tracks_ordered.append(track)
 
-            if position and position > 0:
-                if position not in deduplicated:
-                    deduplicated[position] = track
-                    if track_id:
-                        seen_track_ids.add(track_id)
-                else:
-                    # If duplicate position, keep the one with more data (track_id, etc.)
-                    existing = deduplicated[position]
-                    if track.get("track_id") and not existing.get("track_id"):
-                        deduplicated[position] = track
-                        if track_id:
-                            seen_track_ids.add(track_id)
-            else:
-                # Deduplicate tracks without positions by track_id
-                if track_id and track_id not in seen_track_ids:
-                    tracks_without_position.append(track)
-                    seen_track_ids.add(track_id)
-                elif not track_id:
-                    # Keep tracks without IDs (rare edge case)
-                    tracks_without_position.append(track)
+        if target_position == 50 and len(tracks_ordered) >= 50:
+            tracks = tracks_ordered[:50]
+            for index, track in enumerate(tracks, start=1):
+                track["position"] = index
+            self.logger.info(
+                f"SUCCESS: Assigned positions 1-50 by first-seen order (collected {len(tracks_ordered)} unique)."
+            )
+            return tracks
 
-        # Combine tracks with positions and tracks without positions
-        tracks = [deduplicated[pos] for pos in sorted(deduplicated.keys())]
-
-        # FIX (v1.2.0): Post-deduplication trimming for Top 50 playlists
-        # Issue: Virtualized scrolling can load positions 50-67 simultaneously in single scroll,
-        # causing over-collection before early exit check runs. This ensures exactly 50 tracks returned.
-        if target_position == 50 and len(deduplicated) >= 50:
-            # Check if we have all positions 1-50
-            positions_collected = set(deduplicated.keys())
-            missing_positions = [pos for pos in range(1, 51) if pos not in positions_collected]
-            
-            if all(pos in positions_collected for pos in range(1, 51)):
-                # We have all 50 positions, trim to exactly 50 tracks
-                tracks = [deduplicated[pos] for pos in range(1, 51)]
-                self.logger.info(
-                    f"SUCCESS: Collected all 50 target positions! "
-                    f"Trimmed from {len(deduplicated)} tracks with positions + {len(tracks_without_position)} without positions "
-                    f"to exactly 50 tracks (positions 1-50)"
-                )
-
-                # Reassign positions sequentially (already 1-50, but ensure they're exactly sequential)
-                for index, track in enumerate(tracks, start=1):
-                    original_position = track.get("position")
-                    track["position"] = index
-                    if original_position:
-                        track["original_position"] = original_position
-
-                return tracks
-            else:
-                # We don't have all positions 1-50 - log missing positions for debugging
-                self.logger.warning(
-                    f"WARNING: Did not collect all 50 positions. Missing positions: {missing_positions}. "
-                    f"Collected positions: {sorted(positions_collected)[:10]}... (showing first 10). "
-                    f"Total positions collected: {len(positions_collected)}. "
-                    f"This may indicate incomplete scrolling in CI environment."
-                )
-
-        # Default behavior: include all tracks
-        # Add tracks without positions at the end
-        tracks.extend(tracks_without_position)
-
-        # FIX (v1.9.0): Preserve original chart positions instead of reassigning sequentially
-        # Issue: Sequential reassignment was overwriting actual chart positions (e.g., if we collected
-        # positions [1, 2, 3, 5, 7, 10], it would reassign as [1, 2, 3, 4, 5, 6], losing the real positions).
-        # This caused incorrect positions in CI environments where collection might be incomplete.
-        # Solution: Only assign sequential positions to tracks that don't have positions, starting after
-        # the highest collected position. Preserve all original chart positions.
-        if tracks_without_position:
-            # Find the highest position from tracks with positions
-            highest_position = max([t.get("position", 0) for t in tracks if t.get("position")], default=0)
-            # Assign sequential positions to tracks without positions, starting after highest
-            for index, track in enumerate(tracks_without_position, start=highest_position + 1):
-                if not track.get("position"):
-                    track["position"] = index
-
-        # DO NOT reassign positions for tracks that already have positions - preserve chart positions!
-        # Only tracks without positions get sequential numbers (handled above)
-
+        # Fewer than 50: assign positions 1..N by order
+        for index, track in enumerate(tracks_ordered, start=1):
+            track["position"] = index
         self.logger.info(
-            f"Deduplication: {len(collected)} raw -> {len(tracks)} unique tracks "
-            f"({len(deduplicated)} with positions, {len(tracks_without_position)} without positions). "
-            f"Preserved original chart positions."
+            f"Deduplication: {len(collected)} raw -> {len(tracks_ordered)} unique tracks. "
+            f"Positions assigned by first-seen order (target was {target_position})."
         )
-
-        return tracks
+        return tracks_ordered
 
     def _parse_track_row(self, row) -> Optional[Tuple[str, Dict, Optional[int]]]:
         """Parse a single track row into a track dictionary"""

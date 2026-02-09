@@ -2,6 +2,8 @@
 
 This directory contains test scripts for the Spotify Charts automation system.
 
+**Convention:** One-off and debug tests should be deleted after use. See `docs/CONVENTIONS.md` (Testing Conventions → One-Off and Debug Tests).
+
 ## Structure
 
 ```
@@ -10,13 +12,16 @@ tests/
 │   ├── test_separate_pdfs.py      # Tests separate PDF generation per playlist
 │   └── test_final_verification.py # Comprehensive verification (page count, dimensions)
 │
-└── *.py                            # Unit and debug tests
-    ├── test_page_count.py          # PDF page count verification
-    ├── test_single_page_only.py    # Single-page PDF test
-    ├── test_blank_space_*.py       # Blank space elimination tests
-    ├── test_pdf_*.py               # Various PDF generation tests
-    ├── test_playlist_extraction.py # Playlist data extraction test
-    └── debug_*.py                  # Debug utilities
+└── *.py                            # Unit tests
+    ├── test_selenium_primary_api_enrichment.py  # Selenium + API enrichment architecture
+    ├── test_playlist_extraction.py # Playlist data extraction
+    ├── test_template_validation.py # Template validation
+    ├── test_single_playlist.py     # Single-playlist collection + PDF
+    ├── test_single_playlist_pdf.py # Single-playlist PDF generation
+    ├── test_top_songs_usa.py       # Top Songs USA pipeline
+    ├── test_long_title.py          # Long title handling in PDFs
+    ├── test_google_drive.py        # Google Drive client
+    └── test_google_drive_date_folders.py # Date-based folder creation
 ```
 
 ## Integration Tests

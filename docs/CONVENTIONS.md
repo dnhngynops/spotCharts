@@ -58,6 +58,11 @@ python script.py 2>&1 | tee output.log
 - Save test data to JSON for post-analysis
 - Document any remaining issues
 
+### One-Off and Debug Tests
+- **Delete one-off and debug tests after use.** Do not leave temporary or exploratory test scripts in `tests/`.
+- If a script is only for ad-hoc debugging (e.g. inspecting DOM, verifying a single fix), remove it once the work is done or move it to `scripts/` if you want to keep it as a utility.
+- Keep the test suite limited to integration tests and repeatable unit tests that validate ongoing behavior.
+
 ---
 
-_Last updated: February 4, 2026_
+_Last updated: February 9, 2026_
