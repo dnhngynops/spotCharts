@@ -4,6 +4,52 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [2.5.1] - 2026-02-11
+
+### Enhanced - Album Profile Modal Improvements
+
+- **Metric Box Dropdowns**: Hover on metric boxes to see detailed breakdowns
+  - **Charting Tracks**: Dropdown list of all charting track names with Spotify links
+  - **Charts Reached**: Dropdown list of playlist names with links
+  - **Avg Popularity**: Mini bar chart showing popularity distribution across all album tracks
+  - Total Tracks box has no dropdown (static count)
+
+- **Column Headers**: Added labeled column headers under "All Tracks (#)"
+  - Columns: `#`, `TITLE`, `◷` (duration), `POPULARITY`
+  - Minimalist clock symbol (◷) replaces emoji for cleaner look
+  - Headers styled with uppercase, small font, and subtle separator
+
+- **Duration Alignment**: Duration now vertically centered with its row
+  - Previously aligned with track title text
+  - Now positioned as sibling element at row level for proper vertical centering
+
+- **Play Button on Charted Tracks**: Hover effect for tracks with preview URLs
+  - Green circular play button appears on hover over charted tracks
+  - Track number fades out smoothly as play button appears
+  - Clicking opens 30-second preview in new tab
+
+- **Sticky Album Footer**: Album details (type, release date) now stay visible during scrolling
+  - Footer sticks to bottom of modal while track list scrolls
+  - Provides persistent context when browsing long album track lists
+
+- **Visual Refinements**:
+  - Reduced spacing between album title and subtitle (4px → 2px)
+  - "All Tracks" section title now uses album title color (white) instead of gray
+  - Improved visual hierarchy and consistency
+
+### Technical Changes
+
+- **`templates/dashboard_template.html`**:
+  - Added `.album-track-headers` CSS for column labels
+  - Added `.track-number-wrapper` and `.track-play-btn` for play button hover effect
+  - Added `.album-modal-footer` CSS for sticky footer positioning
+  - Added `.modal-stat-dropdown`, `.modal-stat-dropdown-list`, `.mini-bar-chart` CSS for metric dropdowns
+  - Updated JavaScript to build dropdown content for metric boxes
+  - Restructured track row HTML: duration moved outside of name-line to row level
+  - Added play button wrapper around track number for hover transition
+
+---
+
 ## [2.5.0] - 2026-02-11
 
 ### Added - Profile Popups & Extended API Enrichment

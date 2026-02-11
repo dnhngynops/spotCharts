@@ -254,7 +254,12 @@ def get_playlist_tracks(playlist_id, playlist_name):
 - **Profile Popups**: Click artist/track/album names to view detailed profiles
   - Artist profiles: image, followers, popularity, genres, charting tracks
   - Track profiles: album art, popularity bar, chart positions across playlists
-  - Album profiles: artwork, type, charting tracks from album
+  - Album profiles: artwork, type, full track list with:
+    - Column headers (#, TITLE, ◷, POPULARITY)
+    - Green highlighting for charting tracks
+    - Play button hover on charted tracks with preview URLs
+    - Metric box dropdowns (charting tracks list, charts reached list, popularity bar chart)
+    - Sticky footer showing album type and release date
 
 **Output**: Interactive HTML dashboard deployed to GitHub Pages
 
@@ -437,5 +442,5 @@ python main.py
 ---
 
 **Last Updated**: 2026-02-11
-**Version**: 2.5.0
-**Architecture**: Selenium-Primary + API Enrichment (with Genre/Artist/Album Collection) + Analytics Dashboard (All Tracks deduplicated & composite-ranked, Profile Popups)
+**Version**: 2.5.1
+**Architecture**: Selenium-Primary + API Enrichment (with Genre/Artist/Album Collection) + Analytics Dashboard (All Tracks deduplicated & composite-ranked, Profile Popups with enhanced Album Modals)

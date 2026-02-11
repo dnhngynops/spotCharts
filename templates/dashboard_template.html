@@ -979,10 +979,10 @@
         }
 
         .modal-title {
-            font-size: 1.5em;
+            font-size: 1.6em;
             font-weight: 700;
             color: {{ theme.text_secondary }};
-            margin: 0 0 4px 0;
+            margin: 0 0 2px 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -1038,6 +1038,115 @@
             padding: 12px;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.15s ease;
+            position: relative;
+        }
+
+        .modal-stat:hover {
+            background: rgba(30, 215, 96, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .modal-stat::after {
+            content: '\25BE';
+            position: absolute;
+            bottom: 4px;
+            right: 6px;
+            font-size: 0.6em;
+            color: {{ theme.text_artist }};
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-stat:hover::after {
+            opacity: 0.7;
+        }
+        .modal-stat[style*="cursor: default"]::after {
+            display: none;
+        }
+        .modal-stat[style*="cursor: default"]:hover {
+            background: rgba(0, 0, 0, 0.2);
+            transform: none;
+        }
+
+        /* Metric box dropdown */
+        .modal-stat-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 180px;
+            max-width: 280px;
+            background: {{ theme.surface }};
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            z-index: 10;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            text-align: left;
+            margin-top: 8px;
+        }
+        .modal-stat:hover .modal-stat-dropdown {
+            display: block;
+        }
+        .modal-stat-dropdown::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 6px solid rgba(255, 255, 255, 0.1);
+        }
+        .modal-stat-dropdown-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .modal-stat-dropdown-list li {
+            padding: 4px 0;
+            font-size: 0.8em;
+            color: {{ theme.text_secondary }};
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .modal-stat-dropdown-list li a {
+            color: {{ theme.text_secondary }};
+            text-decoration: none;
+        }
+        .modal-stat-dropdown-list li a:hover {
+            color: {{ theme.primary }};
+        }
+        /* Mini bar chart for popularity */
+        .mini-bar-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 60px;
+            padding-top: 8px;
+        }
+        .mini-bar {
+            flex: 1;
+            min-width: 4px;
+            max-width: 12px;
+            background: {{ theme.primary }};
+            border-radius: 2px 2px 0 0;
+            transition: opacity 0.15s ease;
+        }
+        .mini-bar:hover {
+            opacity: 0.7;
+        }
+        .mini-bar-label {
+            font-size: 0.65em;
+            color: {{ theme.text_artist }};
+            text-align: center;
+            margin-top: 4px;
         }
 
         .modal-stat-value {
@@ -1063,6 +1172,9 @@
             color: {{ theme.text_artist }};
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+        .album-modal-tracks .modal-section-title {
+            color: {{ theme.text_secondary }};
             margin-bottom: 12px;
             padding-bottom: 8px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -1148,6 +1260,267 @@
             color: {{ theme.text_artist }};
             margin-left: 8px;
             flex-shrink: 0;
+        }
+
+        /* Album modal: track rows with readable font sizes */
+        .album-modal-tracks .modal-track-list {
+            margin: 0;
+            padding: 0;
+        }
+        .album-modal-tracks .modal-track-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            margin: 0 -8px;
+            padding-left: 8px;
+            padding-right: 8px;
+            border-radius: 4px;
+            transition: background 0.15s ease;
+        }
+        .album-modal-tracks .modal-track-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .album-modal-tracks .modal-track-item.charting {
+            background: rgba(30, 215, 96, 0.06);
+        }
+        .album-modal-tracks .modal-track-item.charting:hover {
+            background: rgba(30, 215, 96, 0.12);
+        }
+        .album-modal-tracks .modal-track-number {
+            width: 26px;
+            font-size: 0.85em;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+        }
+        .album-modal-tracks .modal-track-name {
+            font-size: 0.95em;
+        }
+        .album-modal-tracks .modal-track-item > .modal-track-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .album-modal-tracks .modal-track-name-line {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .album-modal-tracks .modal-track-name-line .modal-track-name {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .album-modal-tracks .modal-track-duration {
+            font-size: 0.85em;
+            color: {{ theme.text_artist }};
+            flex-shrink: 0;
+            width: 40px;
+            text-align: right;
+        }
+        /* Column headers for album tracks */
+        .album-track-headers {
+            display: flex;
+            align-items: center;
+            padding: 4px 0 8px 0;
+            font-size: 0.7em;
+            font-weight: 600;
+            color: {{ theme.text_artist }};
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            margin-bottom: 4px;
+        }
+        .album-track-headers .col-num {
+            width: 26px;
+            flex-shrink: 0;
+        }
+        .album-track-headers .col-title {
+            flex: 1;
+            min-width: 0;
+        }
+        .album-track-headers .col-duration {
+            width: 40px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .album-track-headers .col-popularity {
+            width: 96px;
+            margin-left: 12px;
+            flex-shrink: 0;
+        }
+        /* Play button for charted tracks with preview */
+        .album-modal-tracks .track-number-wrapper {
+            position: relative;
+            width: 26px;
+            height: 24px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+        }
+        .album-modal-tracks .track-play-btn {
+            position: absolute;
+            left: 0;
+            width: 24px;
+            height: 24px;
+            background: {{ theme.primary }};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+        .album-modal-tracks .track-play-btn::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 8px solid #000;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            margin-left: 2px;
+        }
+        .album-modal-tracks .modal-track-item:hover .track-play-btn {
+            opacity: 1;
+        }
+        .album-modal-tracks .track-play-btn:hover {
+            transform: scale(1.1);
+        }
+        .album-modal-tracks .modal-track-number.has-preview,
+        .album-modal-tracks .modal-track-position.has-preview {
+            transition: opacity 0.15s ease;
+        }
+        .album-modal-tracks .modal-track-item:hover .modal-track-number.has-preview,
+        .album-modal-tracks .modal-track-item:hover .modal-track-position.has-preview {
+            opacity: 0;
+        }
+        .album-modal-tracks .explicit-badge {
+            font-size: 0.55em !important;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+        .album-modal-tracks .album-track-pop {
+            flex-shrink: 0;
+            margin-left: 12px;
+            display: flex;
+            align-items: center;
+        }
+        .album-modal-tracks .modal-track-meta {
+            font-size: 0.8em;
+            margin-top: 2px;
+        }
+        .album-modal-tracks .pop-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .album-modal-tracks .pop-value {
+            width: 24px;
+            font-size: 0.8em;
+            color: {{ theme.primary }};
+            font-weight: 600;
+        }
+        .album-modal-tracks .pop-bar-bg {
+            width: 60px;
+            height: 6px;
+            background: {{ theme.bar_background }};
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+        .album-modal-tracks .pop-bar {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: {{ theme.primary }};
+            border-radius: 3px;
+        }
+        .album-modal-tracks .modal-chart-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 4px;
+        }
+        .modal-chart-badge {
+            display: inline-block;
+            background: rgba(30, 215, 96, 0.2);
+            color: {{ theme.primary }};
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 0.7em;
+            font-weight: 500;
+            white-space: nowrap;
+            text-decoration: none;
+            transition: background 0.15s ease;
+        }
+        .modal-chart-badge:hover {
+            background: rgba(30, 215, 96, 0.35);
+        }
+
+        /* Album modal sticky footer */
+        .album-modal-footer {
+            position: sticky;
+            bottom: -24px;
+            background: {{ theme.surface }};
+            padding: 12px 0 0 0;
+            margin: 16px -24px -24px -24px;
+            padding: 12px 24px 16px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .album-modal-footer-content {
+            color: {{ theme.text_artist }};
+            font-size: 0.9em;
+        }
+
+        /* Album image with preview play button overlay */
+        .modal-image-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+        .modal-image-wrapper .play-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .modal-image-wrapper:hover .play-overlay {
+            opacity: 1;
+        }
+        .modal-image-wrapper .play-icon {
+            width: 40px;
+            height: 40px;
+            background: {{ theme.primary }};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-image-wrapper .play-icon::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 14px solid #000;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            margin-left: 3px;
         }
 
         .modal-popularity-bar {
@@ -1942,6 +2315,17 @@
         const artistProfiles = {{ artist_profiles | tojson | safe }};
         const trackProfiles = {{ track_profiles | tojson | safe }};
         const albumProfiles = {{ album_profiles | tojson | safe }};
+        const playlistUrls = {{ playlist_urls | tojson | safe }};
+
+        function getPlaylistUrl(playlistName) {
+            // Try exact match first
+            if (playlistUrls[playlistName]) return playlistUrls[playlistName];
+            // Try to find partial match
+            for (const [name, url] of Object.entries(playlistUrls)) {
+                if (playlistName.includes(name) || name.includes(playlistName)) return url;
+            }
+            return null;
+        }
 
         function formatNumber(num) {
             if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -2043,7 +2427,7 @@
             } else {
                 imageContainer.innerHTML = `<div class="modal-image-placeholder album">♪</div>`;
             }
-            title.textContent = track.track_name;
+            title.innerHTML = track.track_name + (track.explicit ? ' <span class="explicit-badge" style="font-size: 0.5em; vertical-align: middle;">E</span>' : '');
             subtitle.innerHTML = `by ${track.artist}${track.spotify_url ? ` · <a href="${track.spotify_url}" target="_blank">Open in Spotify ↗</a>` : ''}`;
 
             // Build body
@@ -2062,10 +2446,6 @@
                 <div class="modal-stat">
                     <div class="modal-stat-value">${track.duration || 'N/A'}</div>
                     <div class="modal-stat-label">Duration</div>
-                </div>
-                <div class="modal-stat">
-                    <div class="modal-stat-value">${track.explicit ? 'Yes' : 'No'}</div>
-                    <div class="modal-stat-label">Explicit</div>
                 </div>
             </div>`;
 
@@ -2132,9 +2512,28 @@
             const subtitle = document.getElementById('modal-subtitle');
             const body = document.getElementById('modal-body');
 
-            // Set header
+            // Set header - check for preview URL from charting tracks or all tracks
+            let previewUrl = null;
+            if (album.charting_tracks && album.charting_tracks.length > 0) {
+                const trackWithPreview = album.charting_tracks.find(t => t.preview_url);
+                if (trackWithPreview) previewUrl = trackWithPreview.preview_url;
+            }
+            if (!previewUrl && album.all_tracks && album.all_tracks.length > 0) {
+                const trackWithPreview = album.all_tracks.find(t => t.preview_url);
+                if (trackWithPreview) previewUrl = trackWithPreview.preview_url;
+            }
+
             if (album.album_image) {
-                imageContainer.innerHTML = `<img src="${album.album_image}" class="modal-image album" alt="">`;
+                if (previewUrl) {
+                    imageContainer.innerHTML = `<div class="modal-image-wrapper">
+                        <img src="${album.album_image}" class="modal-image album" alt="">
+                        <a href="${previewUrl}" target="_blank" class="play-overlay" title="Play preview">
+                            <span class="play-icon"></span>
+                        </a>
+                    </div>`;
+                } else {
+                    imageContainer.innerHTML = `<img src="${album.album_image}" class="modal-image album" alt="">`;
+                }
             } else {
                 imageContainer.innerHTML = `<div class="modal-image-placeholder album">♪</div>`;
             }
@@ -2144,54 +2543,153 @@
             // Build body
             let html = '';
 
-            // Stats grid
+            // Stats grid with dropdowns
+            // Build charting tracks dropdown list
+            const chartingTracksList = album.charting_tracks && album.charting_tracks.length > 0
+                ? album.charting_tracks.map(t =>
+                    t.spotify_url
+                        ? `<li><a href="${t.spotify_url}" target="_blank">${t.track_name}</a></li>`
+                        : `<li>${t.track_name}</li>`
+                ).join('')
+                : '<li>No charting tracks</li>';
+
+            // Build charts reached dropdown list
+            const chartsReachedList = album.playlists_reached && album.playlists_reached.length > 0
+                ? album.playlists_reached.map(pl => {
+                    const plUrl = getPlaylistUrl(pl);
+                    const shortName = pl.replace('Top 50 - ', '').replace('Top Songs - ', '');
+                    return plUrl
+                        ? `<li><a href="${plUrl}" target="_blank">${shortName}</a></li>`
+                        : `<li>${shortName}</li>`;
+                }).join('')
+                : '<li>No charts</li>';
+
+            // Build mini bar chart for popularity distribution
+            const tracksForChart = album.all_tracks && album.all_tracks.length > 0
+                ? album.all_tracks
+                : (album.charting_tracks || []);
+            const popularityBars = tracksForChart.length > 0
+                ? tracksForChart.map(t => {
+                    const pop = t.popularity != null ? Number(t.popularity) : 0;
+                    const height = Math.max(4, pop * 0.6); // Scale to max 60px
+                    return `<div class="mini-bar" style="height: ${height}px;" title="${t.track_name}: ${pop}"></div>`;
+                }).join('')
+                : '';
+
             html += `<div class="modal-stats-grid">
                 <div class="modal-stat">
                     <div class="modal-stat-value">${album.charting_track_count}</div>
                     <div class="modal-stat-label">Charting Tracks</div>
+                    <div class="modal-stat-dropdown">
+                        <ul class="modal-stat-dropdown-list">${chartingTracksList}</ul>
+                    </div>
                 </div>
-                <div class="modal-stat">
+                <div class="modal-stat" style="cursor: default;">
                     <div class="modal-stat-value">${album.total_tracks || '?'}</div>
                     <div class="modal-stat-label">Total Tracks</div>
                 </div>
                 <div class="modal-stat">
                     <div class="modal-stat-value">${album.playlists_reached.length}</div>
                     <div class="modal-stat-label">Charts Reached</div>
+                    <div class="modal-stat-dropdown">
+                        <ul class="modal-stat-dropdown-list">${chartsReachedList}</ul>
+                    </div>
                 </div>
                 <div class="modal-stat">
                     <div class="modal-stat-value">${Math.round(album.avg_popularity)}</div>
                     <div class="modal-stat-label">Avg Popularity</div>
+                    <div class="modal-stat-dropdown" style="min-width: 220px;">
+                        <div class="mini-bar-label">Track Popularity Distribution</div>
+                        <div class="mini-bar-chart">${popularityBars}</div>
+                    </div>
                 </div>
             </div>`;
 
-            // Album info
-            html += `<div class="modal-section">
-                <div class="modal-section-title">Details</div>
-                <div style="color: var(--text-artist, #b3b3b3);">
-                    ${album.album_type ? `<span style="text-transform: capitalize;">${album.album_type}</span> · ` : ''}
-                    ${album.release_date || 'Unknown release date'}
-                </div>
-            </div>`;
+            // All album tracks (with charted ones highlighted)
+            if (album.all_tracks && album.all_tracks.length > 0) {
+                html += `<div class="modal-section album-modal-tracks">
+                    <div class="modal-section-title">All Tracks (${album.all_tracks.length})</div>
+                    <div class="album-track-headers">
+                        <span class="col-num">#</span>
+                        <span class="col-title">TITLE</span>
+                        <span class="col-duration">◷</span>
+                        <span class="col-popularity">POPULARITY</span>
+                    </div>
+                    <ul class="modal-track-list">`;
+                album.all_tracks.forEach(t => {
+                    const isCharting = t.is_charting;
+                    const chartBadgesHtml = isCharting && t.chart_positions && t.chart_positions.length > 0
+                        ? t.chart_positions.map(cp => {
+                            const plUrl = getPlaylistUrl(cp.playlist);
+                            const label = `#${cp.position} ${cp.playlist.replace('Top 50 - ', '').replace('Top Songs - ', '')}`;
+                            return plUrl
+                                ? `<a href="${plUrl}" target="_blank" class="modal-chart-badge">${label}</a>`
+                                : `<span class="modal-chart-badge">${label}</span>`;
+                        }).join('')
+                        : '';
+                    const duration = t.duration_ms ? `${Math.floor(t.duration_ms / 60000)}:${String(Math.floor((t.duration_ms % 60000) / 1000)).padStart(2, '0')}` : '';
+                    const pop = t.popularity != null ? Number(t.popularity) : 0;
+                    const popBar = (pop > 0) ? `<div class="pop-container"><span class="pop-value">${pop}</span><span class="pop-bar-bg"><span class="pop-bar" style="width: ${Math.min(100, pop)}%;"></span></span></div>` : '';
+                    const hasPreview = isCharting && t.preview_url;
+                    const playBtn = hasPreview ? `<a href="${t.preview_url}" target="_blank" class="track-play-btn" title="Play preview"></a>` : '';
 
-            // Charting tracks
-            if (album.charting_tracks && album.charting_tracks.length > 0) {
-                html += `<div class="modal-section">
+                    html += `<li class="modal-track-item ${isCharting ? 'charting' : ''}">
+                        <div class="track-number-wrapper">${hasPreview ? playBtn : ''}<span class="modal-track-number${hasPreview ? ' has-preview' : ''}">${t.track_number}</span></div>
+                        <div class="modal-track-info">
+                            <div class="modal-track-name-line">
+                                <div class="modal-track-name">
+                                    ${t.spotify_url ? `<a href="${t.spotify_url}" target="_blank">${t.track_name}</a>` : t.track_name}
+                                    ${t.explicit ? '<span class="explicit-badge">E</span>' : ''}
+                                </div>
+                            </div>
+                            ${chartBadgesHtml ? `<div class="modal-chart-badges">${chartBadgesHtml}</div>` : ''}
+                        </div>
+                        ${duration ? `<span class="modal-track-duration">${duration}</span>` : '<span class="modal-track-duration"></span>'}
+                        ${popBar ? `<div class="album-track-pop">${popBar}</div>` : '<div class="album-track-pop"></div>'}
+                    </li>`;
+                });
+                html += `</ul></div>`;
+            } else if (album.charting_tracks && album.charting_tracks.length > 0) {
+                // Fallback: only show charting tracks if all_tracks not available
+                html += `<div class="modal-section album-modal-tracks">
                     <div class="modal-section-title">Charting Tracks</div>
+                    <div class="album-track-headers">
+                        <span class="col-num">#</span>
+                        <span class="col-title">TITLE</span>
+                        <span class="col-duration">◷</span>
+                        <span class="col-popularity">POPULARITY</span>
+                    </div>
                     <ul class="modal-track-list">`;
                 album.charting_tracks.forEach(t => {
-                    html += `<li class="modal-track-item">
-                        <span class="modal-track-position">#${t.position}</span>
+                    const pop = t.popularity != null ? Number(t.popularity) : 0;
+                    const popBar = (pop > 0) ? `<div class="pop-container"><span class="pop-value">${pop}</span><span class="pop-bar-bg"><span class="pop-bar" style="width: ${Math.min(100, pop)}%;"></span></span></div>` : '';
+                    const durationFallback = t.duration ? t.duration : (t.duration_ms ? `${Math.floor(t.duration_ms / 60000)}:${String(Math.floor((t.duration_ms % 60000) / 1000)).padStart(2, '0')}` : '');
+                    const hasPreview = t.preview_url;
+                    const playBtn = hasPreview ? `<a href="${t.preview_url}" target="_blank" class="track-play-btn" title="Play preview"></a>` : '';
+                    html += `<li class="modal-track-item charting">
+                        <div class="track-number-wrapper">${hasPreview ? playBtn : ''}<span class="modal-track-position${hasPreview ? ' has-preview' : ''}">#${t.position}</span></div>
                         <div class="modal-track-info">
-                            <div class="modal-track-name">
-                                ${t.spotify_url ? `<a href="${t.spotify_url}" target="_blank">${t.track_name}</a>` : t.track_name}
+                            <div class="modal-track-name-line">
+                                <div class="modal-track-name">
+                                    ${t.spotify_url ? `<a href="${t.spotify_url}" target="_blank">${t.track_name}</a>` : t.track_name}
+                                </div>
                             </div>
-                            <div class="modal-track-meta">Popularity: ${t.popularity}</div>
                         </div>
+                        ${durationFallback ? `<span class="modal-track-duration">${durationFallback}</span>` : '<span class="modal-track-duration"></span>'}
+                        ${popBar ? `<div class="album-track-pop">${popBar}</div>` : '<div class="album-track-pop"></div>'}
                         <span class="modal-track-playlist">${t.playlist.replace('Top ', '').replace(' - ', ' ')}</span>
                     </li>`;
                 });
                 html += `</ul></div>`;
             }
+
+            // Album details as sticky footer
+            html += `<div class="album-modal-footer">
+                <div class="album-modal-footer-content">
+                    ${album.album_type ? `<span style="text-transform: capitalize;">${album.album_type}</span> · ` : ''}
+                    ${album.release_date || 'Unknown release date'}
+                </div>
+            </div>`;
 
             body.innerHTML = html;
             modal.classList.add('open');
