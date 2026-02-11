@@ -4,6 +4,68 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [2.5.0] - 2026-02-11
+
+### Added - Profile Popups & Extended API Enrichment
+
+- **Artist Profile Popups**: Click any artist name to view detailed profile
+  - Artist image, follower count, popularity score
+  - Genres associated with the artist
+  - All charting tracks across playlists
+  - Number of chart appearances and unique playlists
+  - Average track popularity and explicit track count
+
+- **Track Profile Popups**: Click any track name to view detailed profile
+  - Album artwork and track metadata
+  - Popularity score with visual bar
+  - All chart positions across playlists
+  - Best position and total charts count
+  - Duration, release date, explicit flag
+
+- **Album Profile Popups**: Click any album name to view detailed profile
+  - Album artwork and metadata
+  - Album type (album, single, compilation)
+  - Total tracks on album
+  - Charting tracks from this album
+  - Playlists reached and average popularity
+
+- **Extended API Enrichment**: Additional artist and album metadata collected
+  - `_fetch_artist_data()`: Now collects artist images, follower counts, and popularity (renamed from `_fetch_artist_genres()`)
+  - Album fields: `album_id`, `album_total_tracks`, `album_type`
+  - Artist fields on tracks: `artist_image`, `artist_followers`, `artist_popularity`
+
+### Technical Changes
+
+- **`src/integrations/spotify_client.py`**:
+  - Renamed `_fetch_artist_genres()` to `_fetch_artist_data()` with extended data collection
+  - Added album metadata extraction in `_enrich_tracks_with_api()`: album_id, album_total_tracks, album_type
+  - Attached artist metadata to tracks: artist_image, artist_followers, artist_popularity
+
+- **`src/reporting/dashboard_generator.py`**:
+  - Added `_prepare_artist_profiles()`: Aggregates tracks by artist for popup data
+  - Added `_prepare_track_profiles()`: Aggregates chart positions per unique track
+  - Added `_prepare_album_profiles()`: Aggregates charting tracks by album
+  - Added key generation methods: `_track_profile_key()`, `_album_profile_key()`, `_artist_profile_key()`
+  - Added `_slugify()` helper for URL-safe profile keys
+  - Updated `_format_track_row()` with profile link data attributes
+  - Profile data passed to template as JSON for JavaScript access
+
+- **`templates/dashboard_template.html`**:
+  - Added modal CSS (~300 lines): overlay, content, header, stats grid, tables
+  - Added modal HTML container with dynamic content population
+  - Embedded profile data as JSON: `artistProfiles`, `trackProfiles`, `albumProfiles`
+  - Added modal JavaScript functions: `openArtistModal()`, `openTrackModal()`, `openAlbumModal()`, `closeModal()`
+  - Delegated click handler for profile links (single-click opens modal, Ctrl+click opens Spotify)
+
+### Benefits
+
+- Rich A&R insights without leaving the dashboard
+- Quick artist/track/album research via profile popups
+- Cross-playlist visibility for artists and tracks
+- Foundation for future historical tracking and deeper analytics
+
+---
+
 ## [2.4.0] - 2026-02-09
 
 ### Added - Fifth Playlist Support

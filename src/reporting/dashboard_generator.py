@@ -64,6 +64,11 @@ class DashboardGenerator:
             if pl_name and pl_id and pl_name not in playlist_urls:
                 playlist_urls[pl_name] = f'https://open.spotify.com/playlist/{pl_id}'
 
+        # Prepare profile data for popup modals
+        artist_profiles = self._prepare_artist_profiles(all_tracks)
+        track_profiles = self._prepare_track_profiles(all_tracks)
+        album_profiles = self._prepare_album_profiles(all_tracks)
+
         # Load and render template
         with open(self.template_path, 'r') as f:
             template = Template(f.read())
@@ -76,6 +81,9 @@ class DashboardGenerator:
             tracks_by_playlist=tracks_by_playlist,
             all_tracks=sorted_all_tracks,
             playlist_urls=playlist_urls,
+            artist_profiles=artist_profiles,
+            track_profiles=track_profiles,
+            album_profiles=album_profiles,
             format_track_row=self._format_track_row,
             format_track_row_with_playlist=self._format_track_row_with_playlist
         )
@@ -604,8 +612,35 @@ class DashboardGenerator:
 
         return ranked
 
+    def _track_profile_key(self, track: Dict) -> str:
+        """Unique key for track profile (track_id or slug of name+artist)."""
+        tid = (track.get('track_id') or '').strip()
+        if tid:
+            return tid
+        name = (track.get('track_name') or '').strip()
+        artist = (track.get('artist') or '').strip()
+        return self._slugify(f"{name}-{artist}")
+
+    def _album_profile_key(self, track: Dict) -> str:
+        """Unique key for album profile (album_id or slug of album+artist)."""
+        aid = (track.get('album_id') or '').strip()
+        if aid:
+            return aid
+        album = (track.get('album') or '').strip()
+        artist = (track.get('artist') or '').strip()
+        return self._slugify(f"{album}-{artist}")
+
+    def _artist_profile_key(self, artist: Dict) -> str:
+        """Unique key for artist profile (artist id or slug of name)."""
+        if isinstance(artist, dict):
+            aid = (artist.get('id') or '').strip()
+            if aid:
+                return aid
+            return self._slugify(str(artist.get('name', '')))
+        return self._slugify(str(artist))
+
     def _format_track_row(self, track: Dict) -> str:
-        """Format a single track as an HTML table row"""
+        """Format a single track as an HTML table row (with profile-link data for modals)."""
         position = track.get('position', '')
         track_name = html.escape(str(track.get('track_name', '')))
         track_url = html.escape(str(track.get('spotify_url', ''))) if track.get('spotify_url') else ''
@@ -616,7 +651,10 @@ class DashboardGenerator:
         popularity = track.get('popularity', 0)
         is_explicit = track.get('explicit', False)
 
-        # Build artist names with links
+        track_key = html.escape(self._track_profile_key(track))
+        album_key = html.escape(self._album_profile_key(track))
+
+        # Build artist names with profile links (data-type/data-id for modal)
         artist_html = ''
         artists = track.get('artists', [])
         if isinstance(artists, list) and artists:
@@ -625,10 +663,15 @@ class DashboardGenerator:
                 if isinstance(artist, dict):
                     name = html.escape(str(artist.get('name', '')))
                     url = html.escape(str(artist.get('url', ''))) if artist.get('url') else ''
+                    artist_key = html.escape(self._artist_profile_key(artist))
                     if url:
-                        artist_links.append(f'<a href="{url}" target="_blank">{name}</a>')
+                        artist_links.append(
+                            f'<a href="{url}" target="_blank" class="profile-link" data-type="artist" data-id="{artist_key}">{name}</a>'
+                        )
                     else:
-                        artist_links.append(name)
+                        artist_links.append(
+                            f'<span class="profile-link" data-type="artist" data-id="{artist_key}">{name}</span>'
+                        )
                 else:
                     artist_links.append(html.escape(str(artist)))
             artist_html = ', '.join(artist_links)
@@ -642,23 +685,23 @@ class DashboardGenerator:
         row = f'<tr>'
         row += f'<td class="position-cell">{position}</td>'
 
-        # Track cell with image
+        # Track cell with image (track name is profile link)
         row += '<td class="track-cell">'
         if album_image:
             row += f'<img src="{album_image}" alt="" class="album-thumb" />'
         row += '<div class="track-details">'
         if track_url:
-            row += f'<div class="track-name"><a href="{track_url}" target="_blank">{track_name}</a></div>'
+            row += f'<div class="track-name"><a href="{track_url}" target="_blank" class="profile-link" data-type="track" data-id="{track_key}">{track_name}</a></div>'
         else:
-            row += f'<div class="track-name">{track_name}</div>'
+            row += f'<div class="track-name"><span class="profile-link" data-type="track" data-id="{track_key}">{track_name}</span></div>'
         row += f'<div class="artist-name">{explicit_badge}{artist_html}</div>'
         row += '</div></td>'
 
-        # Album cell
+        # Album cell (profile link)
         if album_url:
-            row += f'<td><a href="{album_url}" target="_blank">{album}</a></td>'
+            row += f'<td><a href="{album_url}" target="_blank" class="profile-link" data-type="album" data-id="{album_key}">{album}</a></td>'
         else:
-            row += f'<td>{album}</td>'
+            row += f'<td><span class="profile-link" data-type="album" data-id="{album_key}">{album}</span></td>'
 
         # Duration
         row += f'<td class="duration-cell">{duration}</td>'
@@ -715,8 +758,271 @@ class DashboardGenerator:
 
         return buckets
 
+    def _prepare_artist_profiles(self, tracks: List[Dict]) -> Dict:
+        """
+        Prepare artist profile data for popup modals.
+
+        Aggregates all tracks by artist to build comprehensive profiles including:
+        - Artist metadata (image, followers, popularity, genres)
+        - Chart presence statistics
+        - All charting tracks with positions
+
+        Returns:
+            Dict mapping artist_id (or slugified name) to artist profile data
+        """
+        # Group tracks by artist
+        artist_tracks = defaultdict(list)
+        artist_info = {}
+
+        for track in tracks:
+            artists = track.get('artists', [])
+            for i, artist in enumerate(artists):
+                if not isinstance(artist, dict):
+                    continue
+                name = artist.get('name', '')
+                if not name:
+                    continue
+
+                # Use artist ID as key if available, otherwise slugify name
+                artist_id = artist.get('id', '')
+                key = artist_id if artist_id else self._slugify(name)
+
+                # Store track appearance
+                artist_tracks[key].append({
+                    'track_name': track.get('track_name', ''),
+                    'track_id': track.get('track_id', ''),
+                    'playlist': track.get('playlist', ''),
+                    'position': track.get('position', 0),
+                    'popularity': track.get('popularity', 0),
+                    'explicit': track.get('explicit', False),
+                    'spotify_url': track.get('spotify_url', ''),
+                    'album': track.get('album', ''),
+                    'album_image': track.get('album_image', '')
+                })
+
+                # Store artist info (prefer primary artist data, i.e., first artist on track)
+                if key not in artist_info or i == 0:
+                    artist_info[key] = {
+                        'name': name,
+                        'id': artist_id,
+                        'url': artist.get('url', ''),
+                        'image': track.get('artist_image', '') if i == 0 else artist_info.get(key, {}).get('image', ''),
+                        'followers': track.get('artist_followers', 0) if i == 0 else artist_info.get(key, {}).get('followers', 0),
+                        'popularity': track.get('artist_popularity', 0) if i == 0 else artist_info.get(key, {}).get('popularity', 0)
+                    }
+
+        # Build profiles
+        profiles = {}
+        for key, track_list in artist_tracks.items():
+            info = artist_info.get(key, {})
+
+            # Calculate stats
+            playlists = set(t['playlist'] for t in track_list if t['playlist'])
+            popularities = [t['popularity'] for t in track_list if t['popularity']]
+            explicit_count = sum(1 for t in track_list if t['explicit'])
+
+            # Collect genres from tracks (deduplicated)
+            all_genres = set()
+            for track in tracks:
+                artists = track.get('artists', [])
+                for artist in artists:
+                    if isinstance(artist, dict) and artist.get('id') == info.get('id'):
+                        all_genres.update(track.get('genres', []))
+
+            profiles[key] = {
+                'name': info.get('name', ''),
+                'id': info.get('id', ''),
+                'url': info.get('url', ''),
+                'image': info.get('image', ''),
+                'followers': info.get('followers', 0),
+                'artist_popularity': info.get('popularity', 0),
+                'genres': sorted(all_genres),
+                'chart_count': len(playlists),
+                'playlist_names': sorted(playlists),
+                'track_appearances': len(track_list),
+                'tracks': sorted(track_list, key=lambda t: (t['playlist'], t['position'])),
+                'avg_track_popularity': sum(popularities) / len(popularities) if popularities else 0,
+                'explicit_count': explicit_count
+            }
+
+        return profiles
+
+    def _prepare_track_profiles(self, tracks: List[Dict]) -> Dict:
+        """
+        Prepare track profile data for popup modals.
+
+        Aggregates track appearances across playlists to build profiles including:
+        - Track metadata (album, duration, explicit, etc.)
+        - Chart positions across all playlists
+        - Best position and chart count
+
+        Returns:
+            Dict mapping track_key (track_id or slugified name+artist) to track profile data
+        """
+        # Group by unique track
+        track_groups = defaultdict(list)
+
+        for track in tracks:
+            track_id = (track.get('track_id') or '').strip()
+            if track_id:
+                key = track_id
+            else:
+                name = (track.get('track_name') or '').strip()
+                artist = (track.get('artist') or '').strip()
+                key = self._slugify(f"{name}-{artist}")
+
+            track_groups[key].append(track)
+
+        # Build profiles
+        profiles = {}
+        for key, appearances in track_groups.items():
+            # Use the appearance with most data as canonical
+            canonical = max(
+                appearances,
+                key=lambda t: (
+                    1 if t.get('track_id') else 0,
+                    1 if t.get('album_image') else 0,
+                    t.get('popularity') or 0
+                )
+            )
+
+            # Collect chart positions
+            chart_positions = []
+            for t in appearances:
+                if t.get('playlist'):
+                    chart_positions.append({
+                        'playlist': t.get('playlist', ''),
+                        'position': t.get('position', 0)
+                    })
+
+            positions = [t.get('position', 0) for t in appearances if t.get('position')]
+            best_position = min(positions) if positions else 0
+
+            profiles[key] = {
+                'track_name': canonical.get('track_name', ''),
+                'track_id': canonical.get('track_id', ''),
+                'artist': canonical.get('artist', ''),
+                'artists': canonical.get('artists', []),
+                'album': canonical.get('album', ''),
+                'album_id': canonical.get('album_id', ''),
+                'album_url': canonical.get('album_url', ''),
+                'album_image': canonical.get('album_image', ''),
+                'release_date': canonical.get('release_date', ''),
+                'duration': canonical.get('duration', ''),
+                'duration_ms': canonical.get('duration_ms', 0),
+                'explicit': canonical.get('explicit', False),
+                'popularity': max(t.get('popularity', 0) for t in appearances),
+                'genres': canonical.get('genres', []),
+                'spotify_url': canonical.get('spotify_url', ''),
+                'preview_url': canonical.get('preview_url', ''),
+                'chart_positions': sorted(chart_positions, key=lambda x: x['position']),
+                'best_position': best_position,
+                'charts_count': len(set(t.get('playlist', '') for t in appearances if t.get('playlist'))),
+                'artist_image': canonical.get('artist_image', ''),
+                'artist_followers': canonical.get('artist_followers', 0)
+            }
+
+        return profiles
+
+    def _prepare_album_profiles(self, tracks: List[Dict]) -> Dict:
+        """
+        Prepare album profile data for popup modals.
+
+        Aggregates tracks by album to build profiles including:
+        - Album metadata (image, release date, type, total tracks)
+        - Charting tracks from this album
+        - Chart presence statistics
+
+        Returns:
+            Dict mapping album_key (album_id or slugified album+artist) to album profile data
+        """
+        # Group by album
+        album_tracks = defaultdict(list)
+        album_info = {}
+
+        for track in tracks:
+            album = (track.get('album') or '').strip()
+            if not album:
+                continue
+
+            album_id = (track.get('album_id') or '').strip()
+            artist = (track.get('artist') or '').strip()
+            key = album_id if album_id else self._slugify(f"{album}-{artist}")
+
+            album_tracks[key].append({
+                'track_name': track.get('track_name', ''),
+                'track_id': track.get('track_id', ''),
+                'playlist': track.get('playlist', ''),
+                'position': track.get('position', 0),
+                'popularity': track.get('popularity', 0),
+                'explicit': track.get('explicit', False),
+                'spotify_url': track.get('spotify_url', ''),
+                'duration': track.get('duration', '')
+            })
+
+            # Store album info (use first occurrence or one with most data)
+            if key not in album_info or track.get('album_image'):
+                album_info[key] = {
+                    'album': album,
+                    'album_id': album_id,
+                    'album_url': track.get('album_url', ''),
+                    'album_image': track.get('album_image', ''),
+                    'artist': artist,
+                    'artists': track.get('artists', []),
+                    'release_date': track.get('release_date', ''),
+                    'album_type': track.get('album_type', ''),
+                    'album_total_tracks': track.get('album_total_tracks', 0)
+                }
+
+        # Build profiles
+        profiles = {}
+        for key, track_list in album_tracks.items():
+            info = album_info.get(key, {})
+
+            # Calculate stats
+            playlists = set(t['playlist'] for t in track_list if t['playlist'])
+            popularities = [t['popularity'] for t in track_list if t['popularity']]
+            explicit_count = sum(1 for t in track_list if t['explicit'])
+
+            # Count unique charting tracks (by track_id or name)
+            unique_tracks = set()
+            for t in track_list:
+                tid = t.get('track_id', '')
+                if tid:
+                    unique_tracks.add(tid)
+                else:
+                    unique_tracks.add(t.get('track_name', ''))
+
+            profiles[key] = {
+                'album': info.get('album', ''),
+                'album_id': info.get('album_id', ''),
+                'album_url': info.get('album_url', ''),
+                'album_image': info.get('album_image', ''),
+                'artist': info.get('artist', ''),
+                'artists': info.get('artists', []),
+                'release_date': info.get('release_date', ''),
+                'album_type': info.get('album_type', ''),
+                'total_tracks': info.get('album_total_tracks', 0),
+                'charting_tracks': sorted(track_list, key=lambda t: (t['playlist'], t['position'])),
+                'charting_track_count': len(unique_tracks),
+                'playlists_reached': sorted(playlists),
+                'avg_popularity': sum(popularities) / len(popularities) if popularities else 0,
+                'explicit_count': explicit_count
+            }
+
+        return profiles
+
+    @staticmethod
+    def _slugify(text: str) -> str:
+        """Convert text to a URL-safe slug for use as keys"""
+        import re
+        text = text.lower().strip()
+        text = re.sub(r'[^\w\s-]', '', text)
+        text = re.sub(r'[\s_-]+', '-', text)
+        return text[:100]  # Limit length
+
     def _format_track_row_with_playlist(self, track: Dict) -> str:
-        """Format a single track as an HTML table row for All Tracks (no playlist column)."""
+        """Format a single track as an HTML table row for All Tracks (no playlist column), with profile-link data for modals."""
         position = track.get('position', '')
         # Ensure numeric position for client-side sort: missing/0 -> 999 so rows sort last
         position_num = 999
@@ -735,7 +1041,10 @@ class DashboardGenerator:
         is_explicit = track.get('explicit', False)
         playlist = html.escape(str(track.get('playlist', '')))
 
-        # Build artist names with links
+        track_key = html.escape(self._track_profile_key(track))
+        album_key = html.escape(self._album_profile_key(track))
+
+        # Build artist names with profile links (data-type/data-id for modal)
         artist_html = ''
         artists = track.get('artists', [])
         if isinstance(artists, list) and artists:
@@ -744,10 +1053,15 @@ class DashboardGenerator:
                 if isinstance(artist, dict):
                     name = html.escape(str(artist.get('name', '')))
                     url = html.escape(str(artist.get('url', ''))) if artist.get('url') else ''
+                    artist_key = html.escape(self._artist_profile_key(artist))
                     if url:
-                        artist_links.append(f'<a href="{url}" target="_blank">{name}</a>')
+                        artist_links.append(
+                            f'<a href="{url}" target="_blank" class="profile-link" data-type="artist" data-id="{artist_key}">{name}</a>'
+                        )
                     else:
-                        artist_links.append(name)
+                        artist_links.append(
+                            f'<span class="profile-link" data-type="artist" data-id="{artist_key}">{name}</span>'
+                        )
                 else:
                     artist_links.append(html.escape(str(artist)))
             artist_html = ', '.join(artist_links)
@@ -778,23 +1092,23 @@ class DashboardGenerator:
         )
         row += f'<td class="position-cell">{position}</td>'
 
-        # Track cell with image
+        # Track cell with image (track name is profile link)
         row += '<td class="track-cell">'
         if album_image:
             row += f'<img src="{album_image}" alt="" class="album-thumb" />'
         row += '<div class="track-details">'
         if track_url:
-            row += f'<div class="track-name"><a href="{track_url}" target="_blank">{track_name}</a></div>'
+            row += f'<div class="track-name"><a href="{track_url}" target="_blank" class="profile-link" data-type="track" data-id="{track_key}">{track_name}</a></div>'
         else:
-            row += f'<div class="track-name">{track_name}</div>'
+            row += f'<div class="track-name"><span class="profile-link" data-type="track" data-id="{track_key}">{track_name}</span></div>'
         row += f'<div class="artist-name">{explicit_badge}{artist_html}</div>'
         row += '</div></td>'
 
-        # Album cell
+        # Album cell (profile link)
         if album_url:
-            row += f'<td><a href="{album_url}" target="_blank">{album}</a></td>'
+            row += f'<td><a href="{album_url}" target="_blank" class="profile-link" data-type="album" data-id="{album_key}">{album}</a></td>'
         else:
-            row += f'<td>{album}</td>'
+            row += f'<td><span class="profile-link" data-type="album" data-id="{album_key}">{album}</span></td>'
 
         # Duration (playlist column removed; filter still uses data-playlist)
         row += f'<td class="duration-cell">{duration}</td>'

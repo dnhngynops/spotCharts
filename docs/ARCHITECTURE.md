@@ -164,10 +164,17 @@ def get_playlist_tracks(playlist_id, playlist_name):
     'duration': '3:29',                              # Formatted duration
     'duration_ms': 209000,                           # Duration in ms
     'album': 'DECIDE',                               # Album name
+    'album_url': 'https://...',                      # Album Spotify URL
     'album_image': 'https://...',                    # Album art URL
+    'album_id': '...',                               # Album ID (for grouping)
+    'album_total_tracks': 12,                        # Total tracks on album
+    'album_type': 'album',                           # album, single, compilation
     'release_date': '2022-09-16',                    # Release date
     'preview_url': 'https://...',                    # 30s preview
     'genres': ['pop', 'indie pop', 'alt z'],         # Genres (from Artist API)
+    'artist_image': 'https://...',                   # Primary artist image
+    'artist_followers': 1500000,                     # Primary artist followers
+    'artist_popularity': 85,                         # Primary artist popularity
 }
 ```
 
@@ -182,8 +189,8 @@ def get_playlist_tracks(playlist_id, playlist_name):
 **Key Methods**:
 - `get_playlist_tracks(playlist_id)`: Main entry point
 - `_get_playlist_tracks_selenium(playlist_id)`: Selenium scraping logic
-- `_enrich_tracks_with_api(tracks)`: API enrichment logic (includes genre fetching)
-- `_fetch_artist_genres(tracks)`: Batch genre collection from Artist API
+- `_enrich_tracks_with_api(tracks)`: API enrichment logic (includes artist/album data)
+- `_fetch_artist_data(tracks)`: Batch artist data collection (genres, images, followers, popularity)
 - `get_all_playlist_tracks(playlist_ids)`: Collect from multiple playlists
 
 **Parameters**:
@@ -213,7 +220,7 @@ def get_playlist_tracks(playlist_id, playlist_name):
 
 ### DashboardGenerator (`src/reporting/dashboard_generator.py`)
 
-**Purpose**: Generate comprehensive HTML dashboard with cross-playlist analytics
+**Purpose**: Generate comprehensive HTML dashboard with cross-playlist analytics and profile popups
 
 **Key Methods**:
 - `generate_dashboard()`: Main entry point - generates complete dashboard HTML
@@ -227,8 +234,12 @@ def get_playlist_tracks(playlist_id, playlist_name):
 - `_analyze_playlists()`: Per-playlist statistics
 - `_calculate_playlist_analytics()`: Per-playlist metrics including genres, histogram, and track details
 - `_build_histogram()`: Static method for dynamic histogram bin calculation based on actual data range
-- `_format_track_row()`: Formats individual tracks for table display
+- `_format_track_row()`: Formats individual tracks for table display with profile link data attributes
 - `_format_track_row_with_playlist()`: Formats All Tracks row (no playlist column; data-playlist for filter)
+- `_prepare_artist_profiles()`: Aggregates track data by artist for popup profiles
+- `_prepare_track_profiles()`: Aggregates chart positions per unique track for popup profiles
+- `_prepare_album_profiles()`: Aggregates charting tracks by album for popup profiles
+- `_slugify()`: Generates URL-safe keys for profile linking
 
 **Analytics Features**:
 - Summary statistics (**unique tracks**, playlists, average popularity, explicit count, unique genres)
@@ -240,6 +251,10 @@ def get_playlist_tracks(playlist_id, playlist_name):
 - Popularity stats per playlist: average score, range bar, dynamic histogram (5 bins)
 - Playlist titles hyperlinked to their Spotify URLs
 - Full track listings for each playlist
+- **Profile Popups**: Click artist/track/album names to view detailed profiles
+  - Artist profiles: image, followers, popularity, genres, charting tracks
+  - Track profiles: album art, popularity bar, chart positions across playlists
+  - Album profiles: artwork, type, charting tracks from album
 
 **Output**: Interactive HTML dashboard deployed to GitHub Pages
 
@@ -421,6 +436,6 @@ python main.py
 
 ---
 
-**Last Updated**: 2026-02-04
-**Version**: 2.2.0
-**Architecture**: Selenium-Primary + API Enrichment (with Genre Collection) + Analytics Dashboard (All Tracks deduplicated & composite-ranked)
+**Last Updated**: 2026-02-11
+**Version**: 2.5.0
+**Architecture**: Selenium-Primary + API Enrichment (with Genre/Artist/Album Collection) + Analytics Dashboard (All Tracks deduplicated & composite-ranked, Profile Popups)

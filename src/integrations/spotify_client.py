@@ -172,6 +172,18 @@ class SpotifyClient:
                 if not track.get('release_date') and api_track.get('album', {}).get('release_date'):
                     track['release_date'] = api_track['album']['release_date']
 
+                # Add album ID (for grouping/linking)
+                if not track.get('album_id') and api_track.get('album', {}).get('id'):
+                    track['album_id'] = api_track['album']['id']
+
+                # Add album total tracks count
+                if not track.get('album_total_tracks') and api_track.get('album', {}).get('total_tracks'):
+                    track['album_total_tracks'] = api_track['album']['total_tracks']
+
+                # Add album type (album, single, compilation)
+                if not track.get('album_type') and api_track.get('album', {}).get('album_type'):
+                    track['album_type'] = api_track['album']['album_type']
+
                 # Add artist details if needed
                 if api_track.get('artists'):
                     # Keep scraped artist names but add IDs if available
@@ -191,32 +203,59 @@ class SpotifyClient:
 
         print(f"   ✓ Enriched {enriched_count}/{len(tracks)} tracks successfully ({failed_count} failed)")
 
-        # Fetch and attach genre data from artist endpoints
-        print("   Fetching artist genres...")
-        artist_genres = self._fetch_artist_genres(enriched_tracks)
+        # Fetch and attach artist data from artist endpoints
+        print("   Fetching artist data (genres, images, followers)...")
+        artist_data_map = self._fetch_artist_data(enriched_tracks)
         genre_count = 0
+        artist_enriched_count = 0
         for track in enriched_tracks:
             track_genres = set()
-            for artist in track.get('artists', []):
+            artists = track.get('artists', [])
+
+            # Get primary artist ID (first artist)
+            primary_artist_id = None
+            if artists and isinstance(artists[0], dict):
+                primary_artist_id = artists[0].get('id')
+
+            # Attach primary artist metadata to track
+            if primary_artist_id and primary_artist_id in artist_data_map:
+                primary_data = artist_data_map[primary_artist_id]
+                track['artist_image'] = primary_data.get('image')
+                track['artist_followers'] = primary_data.get('followers', 0)
+                track['artist_popularity'] = primary_data.get('popularity', 0)
+                artist_enriched_count += 1
+
+            # Collect genres from all artists on the track
+            for artist in artists:
                 if isinstance(artist, dict) and artist.get('id'):
-                    genres = artist_genres.get(artist['id'], [])
+                    artist_info = artist_data_map.get(artist['id'], {})
+                    genres = artist_info.get('genres', [])
                     track_genres.update(genres)
+
             track['genres'] = list(track_genres)
             if track['genres']:
                 genre_count += 1
+
         print(f"   ✓ Added genres to {genre_count}/{len(enriched_tracks)} tracks")
+        print(f"   ✓ Added artist metadata to {artist_enriched_count}/{len(enriched_tracks)} tracks")
 
         return enriched_tracks
 
-    def _fetch_artist_genres(self, tracks: List[Dict]) -> Dict[str, List[str]]:
+    def _fetch_artist_data(self, tracks: List[Dict]) -> Dict[str, Dict]:
         """
-        Fetch genres for all unique artists across tracks using batch API calls.
+        Fetch artist data for all unique artists across tracks using batch API calls.
+
+        Collects genres, images, follower counts, and popularity for each artist.
 
         Args:
             tracks: List of tracks with artist information
 
         Returns:
-            Dict mapping artist_id to list of genre strings
+            Dict mapping artist_id to artist data dict with keys:
+            - genres: list of genre strings
+            - image: artist image URL (or None)
+            - followers: follower count (int)
+            - popularity: artist popularity 0-100 (int)
         """
         # Collect unique artist IDs
         artist_ids = set()
@@ -228,7 +267,7 @@ class SpotifyClient:
         if not artist_ids:
             return {}
 
-        artist_genres = {}
+        artist_data_map = {}
         artist_ids_list = list(artist_ids)
 
         # Batch fetch (Spotify API supports up to 50 artists per request)
@@ -239,15 +278,35 @@ class SpotifyClient:
                 response = self.client.artists(batch)
                 for artist_data in response.get('artists', []):
                     if artist_data:
-                        artist_genres[artist_data['id']] = artist_data.get('genres', [])
-            except Exception as e:
-                print(f"   Warning: Failed to fetch genres for artist batch: {e}")
-                for artist_id in batch:
-                    if artist_id not in artist_genres:
-                        artist_genres[artist_id] = []
+                        # Extract artist image (first/largest image if available)
+                        images = artist_data.get('images', [])
+                        image_url = images[0]['url'] if images else None
 
-        print(f"   ✓ Fetched genres for {len(artist_genres)}/{len(artist_ids)} unique artists")
-        return artist_genres
+                        # Extract follower count
+                        followers = artist_data.get('followers', {}).get('total', 0)
+
+                        # Extract artist popularity
+                        popularity = artist_data.get('popularity', 0)
+
+                        artist_data_map[artist_data['id']] = {
+                            'genres': artist_data.get('genres', []),
+                            'image': image_url,
+                            'followers': followers,
+                            'popularity': popularity
+                        }
+            except Exception as e:
+                print(f"   Warning: Failed to fetch data for artist batch: {e}")
+                for artist_id in batch:
+                    if artist_id not in artist_data_map:
+                        artist_data_map[artist_id] = {
+                            'genres': [],
+                            'image': None,
+                            'followers': 0,
+                            'popularity': 0
+                        }
+
+        print(f"   ✓ Fetched data for {len(artist_data_map)}/{len(artist_ids)} unique artists")
+        return artist_data_map
 
     def get_all_playlist_tracks(self, playlist_ids: List[str]) -> List[Dict]:
         """

@@ -12,7 +12,7 @@ Automated system to fetch tracks from your chosen Spotify playlists (default 4â€
 - **Robust & Reliable**: Multiple fallback strategies prevent collection failures
 - **Headless Browser**: Runs invisibly in background with performance optimizations
 
-### **Report Generation (v1.8.0 / v2.2.0)**
+### **Report Generation (v1.8.0 / v2.5.0)**
 - **Interactive HTML Dashboard**: Comprehensive analytics dashboard with cross-playlist insights
   - Summary statistics (**unique tracks**, playlists, average popularity, explicit content)
   - **All Tracks table**: Deduplicated (one row per unique track), ranks 1â€“N by composite score (chart appearances, avg position, popularity, playlist avg popularity)
@@ -22,6 +22,7 @@ Automated system to fetch tracks from your chosen Spotify playlists (default 4â€
   - USA vs Global comparison for Songs playlists
   - Popularity distribution by playlist
   - Full track listings for each playlist (50 tracks each)
+  - **Profile Popups**: Click artist/track/album names to view detailed profiles with stats and cross-playlist data
   - **GitHub Pages Hosting**: Automatically deployed to public URL after each run
 - **Separate Playlist PDFs**: Each playlist generates its own PDF report with "Spotify [playlist name]" title format
   - Single continuous page (no pagination)
@@ -243,6 +244,13 @@ spotifyCharts/
 ```
 
 ## Recent Updates
+
+**v2.5.0 Profile Popups & Extended API Enrichment (Feb 2026):**
+- **Artist Profile Popups**: Click any artist name to view detailed profile (image, followers, genres, charting tracks)
+- **Track Profile Popups**: Click any track name to view all chart positions, popularity, album info
+- **Album Profile Popups**: Click any album name to view charting tracks from that album
+- **Extended Enrichment**: Artist images/followers/popularity, album ID/type/total tracks now collected
+- **Modal UX**: Single-click opens popup, Ctrl+click opens Spotify link
 
 **v2.2.0 All Tracks Deduplication & Dashboard UX (Feb 2026):**
 - **All Tracks Table**: Unique tracks only (no duplicates); ranks 1â€“N by composite score
