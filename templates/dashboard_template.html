@@ -1077,7 +1077,7 @@
             left: 50%;
             transform: translateX(-50%);
             min-width: 180px;
-            max-width: 280px;
+            max-width: 320px;
             background: {{ theme.surface }};
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
@@ -1112,9 +1112,8 @@
             padding: 4px 0;
             font-size: 0.8em;
             color: {{ theme.text_secondary }};
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            word-wrap: break-word;
+            line-height: 1.4;
         }
         .modal-stat-dropdown-list li a {
             color: {{ theme.text_secondary }};
@@ -1138,9 +1137,27 @@
             background: {{ theme.primary }};
             border-radius: 2px 2px 0 0;
             transition: opacity 0.15s ease;
+            position: relative;
         }
         .mini-bar:hover {
             opacity: 0.7;
+        }
+        .mini-bar:hover::after {
+            content: attr(data-popularity);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: {{ theme.primary }};
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            margin-bottom: 4px;
+            pointer-events: none;
+            z-index: 100;
         }
         .mini-bar-label {
             font-size: 0.65em;
@@ -2544,23 +2561,34 @@
             let html = '';
 
             // Stats grid with dropdowns
-            // Build charting tracks dropdown list
+            // Build charting tracks dropdown list (deduplicated)
             const chartingTracksList = album.charting_tracks && album.charting_tracks.length > 0
-                ? album.charting_tracks.map(t =>
-                    t.spotify_url
-                        ? `<li><a href="${t.spotify_url}" target="_blank">${t.track_name}</a></li>`
-                        : `<li>${t.track_name}</li>`
-                ).join('')
+                ? (() => {
+                    const seen = new Set();
+                    return album.charting_tracks
+                        .filter(t => {
+                            const key = t.track_id || t.track_name;
+                            if (seen.has(key)) return false;
+                            seen.add(key);
+                            return true;
+                        })
+                        .map(t =>
+                            t.spotify_url
+                                ? `<li><a href="${t.spotify_url}" target="_blank">${t.track_name}</a></li>`
+                                : `<li>${t.track_name}</li>`
+                        ).join('');
+                })()
                 : '<li>No charting tracks</li>';
 
             // Build charts reached dropdown list
             const chartsReachedList = album.playlists_reached && album.playlists_reached.length > 0
                 ? album.playlists_reached.map(pl => {
                     const plUrl = getPlaylistUrl(pl);
-                    const shortName = pl.replace('Top 50 - ', '').replace('Top Songs - ', '');
+                    // Keep full playlist name to prevent cutoff
+                    const displayName = pl;
                     return plUrl
-                        ? `<li><a href="${plUrl}" target="_blank">${shortName}</a></li>`
-                        : `<li>${shortName}</li>`;
+                        ? `<li><a href="${plUrl}" target="_blank">${displayName}</a></li>`
+                        : `<li>${displayName}</li>`;
                 }).join('')
                 : '<li>No charts</li>';
 
@@ -2572,7 +2600,7 @@
                 ? tracksForChart.map(t => {
                     const pop = t.popularity != null ? Number(t.popularity) : 0;
                     const height = Math.max(4, pop * 0.6); // Scale to max 60px
-                    return `<div class="mini-bar" style="height: ${height}px;" title="${t.track_name}: ${pop}"></div>`;
+                    return `<div class="mini-bar" style="height: ${height}px;" title="Popularity: ${pop}\n${t.track_name}" data-popularity="${pop}"></div>`;
                 }).join('')
                 : '';
 
@@ -2612,7 +2640,7 @@
                     <div class="album-track-headers">
                         <span class="col-num">#</span>
                         <span class="col-title">TITLE</span>
-                        <span class="col-duration">◷</span>
+                        <span class="col-duration" style="font-size: 1.2em;">◷</span>
                         <span class="col-popularity">POPULARITY</span>
                     </div>
                     <ul class="modal-track-list">`;
@@ -2656,7 +2684,7 @@
                     <div class="album-track-headers">
                         <span class="col-num">#</span>
                         <span class="col-title">TITLE</span>
-                        <span class="col-duration">◷</span>
+                        <span class="col-duration" style="font-size: 1.2em;">◷</span>
                         <span class="col-popularity">POPULARITY</span>
                     </div>
                     <ul class="modal-track-list">`;
