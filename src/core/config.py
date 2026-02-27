@@ -11,8 +11,9 @@ SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 
 # Google Drive Configuration
+GOOGLE_DRIVE_ENABLED          = os.getenv('GOOGLE_DRIVE_ENABLED', 'false').lower() == 'true'
 GOOGLE_DRIVE_CREDENTIALS_PATH = os.getenv('GOOGLE_DRIVE_CREDENTIALS_PATH', './credentials/google-drive-credentials.json')
-GOOGLE_DRIVE_FOLDER_ID = os.getenv('GOOGLE_DRIVE_FOLDER_ID')
+GOOGLE_DRIVE_FOLDER_ID        = os.getenv('GOOGLE_DRIVE_FOLDER_ID')
 
 # Email Configuration
 EMAIL_SMTP_SERVER = os.getenv('EMAIL_SMTP_SERVER', 'smtp.gmail.com')
@@ -41,18 +42,28 @@ TABLE_CONFIG = {
     'max_tracks_per_playlist': None,  # None = all tracks
 }
 
-# Spotify Theme Colors
+# Milk & Honey LA Theme Colors
 SPOTIFY_THEME = {
-    'background': '#121212',
-    'surface': '#181818',
-    'primary': '#1DB954',
-    'text_primary': '#FFFFFF',
-    'text_secondary': '#B3B3B3',
-    'text_track': '#E0E0E0',      # Track name color (lighter than secondary)
-    'text_artist': '#888888',     # Artist name color (darker than secondary)
-    'border': '#282828',
-    'bar_background': '#2a2a2a',  # Popularity bar background
+    'background': '#131C25',      # Page background
+    'surface': '#1E2A36',         # Card / panel surface
+    'primary': '#58C69D',         # Primary accent green
+    'accent_light': '#6BD1A6',    # Heading color / light accent
+    'accent_dark': '#3B3838',     # Dark secondary accent
+    'text_primary': '#FFFCFC',    # Body text
+    'text_secondary': '#C8D0D8',  # Cool off-white
+    'text_track': '#E8EDF2',      # Track name color
+    'text_artist': '#8C96A1',     # Artist name color (cool gray)
+    'border': '#313C45',          # Dark border
+    'bar_background': '#263342',  # Popularity bar background
 }
+
+# Genius API (song credits: writers, producers, engineers)
+GENIUS_ACCESS_TOKEN = os.getenv('GENIUS_ACCESS_TOKEN')
+
+# Supabase Configuration (intermediate data storage + historical analytics)
+SUPABASE_URL         = os.getenv('SUPABASE_URL')           # Project URL
+SUPABASE_ANON_KEY    = os.getenv('SUPABASE_ANON_KEY')      # Read-only; safe to embed in JS
+SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')   # Write; server-side only, never expose in HTML
 
 # Report Generation Configuration
 REPORT_CONFIG = {

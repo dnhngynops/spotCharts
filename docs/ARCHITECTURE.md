@@ -54,6 +54,26 @@ The system follows a **Selenium-Primary + API Enrichment** architecture:
             └── Returns: Enriched track dictionaries        │
 
 ┌─────────────────────────────────────────────────────────────────┐
+│  STEP 1.5: Supabase Persistence (SupabaseClient)               │
+└─────────────────────────────────────────────────────────────────┘
+        │
+        │  Write order (each step upserts by Spotify ID):
+        ├── 1. playlists          — upsert playlist metadata
+        ├── 2. playlist_scrapes   — insert run record (→ scrape_id)
+        ├── 3. credits            — upsert artists by spotify_id
+        ├── 4. credit_genres      — upsert artist ↔ genre links
+        ├── 5. albums             — upsert albums (+ all_tracks JSONB)
+        ├── 6. songs              — upsert tracks, FK to album_id
+        ├── 7. song_credits       — upsert (song_id, credit_id, role_id)
+        ├── 8. song_genres        — upsert song ↔ genre links
+        └── 9. playlist_songs     — insert position observation
+                                    (playlist × song × scrape_id)
+
+        NOTE: Apply sql/schema.sql once in the Supabase SQL Editor before
+        the first pipeline run with Supabase enabled.
+        Supabase is optional — the pipeline continues if unconfigured.
+
+┌─────────────────────────────────────────────────────────────────┐
 │  STEP 2: Report Generation                                      │
 └─────────────────────────────────────────────────────────────────┘
         │
@@ -97,9 +117,10 @@ The system follows a **Selenium-Primary + API Enrichment** architecture:
         └── Dashboard accessible at public URL
 
 ┌─────────────────────────────────────────────────────────────────┐
-│  STEP 4: Google Drive Upload                                    │
+│  STEP 4: Google Drive Upload (currently DISABLED)               │
 └─────────────────────────────────────────────────────────────────┘
         │
+        ├── Skipped unless GOOGLE_DRIVE_ENABLED=true in .env
         ├── Create date folder (YYYY-MM-DD)
         ├── Upload HTML dashboard
         ├── Upload all PDF reports
@@ -218,7 +239,7 @@ def get_playlist_tracks(playlist_id, playlist_name):
 
 ---
 
-### DashboardGenerator (`src/reporting/dashboard_generator.py`)
+### DashboardGenerator (`src/apps/charts/generator.py`)
 
 **Purpose**: Generate comprehensive HTML dashboard with cross-playlist analytics and profile popups
 
@@ -263,7 +284,9 @@ def get_playlist_tracks(playlist_id, playlist_name):
 
 **Output**: Interactive HTML dashboard deployed to GitHub Pages
 
-### PDFGenerator (`src/reporting/pdf_generator.py`)
+> `src/reporting/dashboard_generator.py` remains as a backwards-compatibility shim that re-exports this class.
+
+### PDFGenerator + TableGenerator (`src/apps/charts/pdf.py`)
 
 **Purpose**: Generate single-page PDF reports
 
@@ -273,6 +296,8 @@ def get_playlist_tracks(playlist_id, playlist_name):
 3. **Pass 3**: Re-render with exact height (content height + 5mm buffer)
 
 **Result**: Single continuous page PDF (~1200-1300mm for 50 tracks)
+
+> `src/reporting/pdf_generator.py` and `src/reporting/table_generator.py` remain as backwards-compatibility shims.
 
 ---
 
@@ -407,6 +432,46 @@ Tests entire pipeline:
 
 ---
 
+## Database Architecture (Supabase)
+
+Schema location: `sql/schema.sql` (v2.0). Run once against a new Supabase project via the SQL Editor.
+
+### Core entity relationships
+
+```
+playlists ──< playlist_songs >── songs ──> albums
+                   │                │
+           playlist_scrapes    song_credits >── credits (artists)
+                               song_genres  >── genres
+                                            credit_genres
+```
+
+### Schema sections
+
+| Section | Tables | Pipeline phase |
+|---|---|---|
+| Foundation | `profiles`, `roles`, `genres`, `representation_types` | Pre-seed |
+| Companies | `companies` | Future enrichment |
+| Credits | `credits` | Current (artists from Spotify) |
+| Albums | `albums`, `album_credits`, `album_genres` | Current (albums from Spotify) |
+| Songs | `songs`, `song_credits`, `song_genres` | Current |
+| Chart tracking | `playlists`, `playlist_scrapes`, `playlist_songs` | Current |
+| Industry CRM | `company_staff`, `representations`, `teams`, `rosters` | Future enrichment |
+| Role normalization | `raw_role_names`, `role_mapping_patterns`, `role_mapping_suggestions` | Future enrichment |
+| Discovery | `discovery_urls`, `discovery_extractions`, `discovery_search_logs` | Future enrichment |
+| Operations | `processing_progress` | Future enrichment |
+| User features | `watchlists`, `watchlist_items` | Future |
+
+### Key design decisions
+
+- **Charts as playlists**: Billboard and other external charts use `playlists.source_type = 'billboard'` instead of a separate table.
+- **Albums as first-class entities**: Album metadata (image, full track listing, label) is its own table with FKs from `songs`.
+- **`all_tracks` JSONB on albums**: The full Spotify track listing is cached as JSONB so the dashboard album profile modal works without every album track being individually charted.
+- **Credits as unified entity**: All people in the music industry (artists, producers, writers, managers, A&R) share the `credits` table, differentiated by `credit_category` and `song_credits.role_id`.
+- **Consistent `timestamptz`**: All timestamps are timezone-aware.
+
+---
+
 ## Future Improvements
 
 ### Potential Enhancements
@@ -414,13 +479,16 @@ Tests entire pipeline:
 2. **Parallel scraping**: Scrape multiple playlists simultaneously
 3. **Incremental updates**: Only scrape changed tracks
 4. **More metadata**: Add mood, energy level, audio features
-5. **Historical tracking**: Store track movements over time
+5. **Historical tracking**: Track position movements via `playlist_songs` across scrapes
 
 ### Known Limitations
 1. **Preview URLs**: Not always available from Spotify API
 2. **Virtualized scrolling**: Requires careful scroll logic
 3. **Rate limits**: API enrichment subject to Spotify rate limits
 4. **Chrome dependency**: Requires Chrome browser installed
+5. **Artist genre approximation**: `track['genres']` is the combined list from all artists on a track; per-artist genre breakdown is not exposed by Spotify's track-level API, so `credit_genres` assigns all track genres to every artist on the track
+6. **Primary-artist enrichment only**: `artist_image`, `artist_followers`, `artist_popularity` on a track dict are for the primary (first) artist; secondary artists get no enrichment data from that track
+7. **Google Drive disabled**: `GOOGLE_DRIVE_ENABLED=false` by default; set to `true` in `.env` to re-enable upload
 
 ---
 
@@ -441,6 +509,6 @@ python main.py
 
 ---
 
-**Last Updated**: 2026-02-11
-**Version**: 2.5.1
-**Architecture**: Selenium-Primary + API Enrichment (with Genre/Artist/Album Collection) + Analytics Dashboard (All Tracks deduplicated & composite-ranked, Profile Popups with enhanced Album Modals)
+**Last Updated**: 2026-02-18
+**Version**: 3.1.0
+**Architecture**: Selenium-Primary + API Enrichment → Supabase Persistence (flat runs/chart_entries schema; v2.0 rewrite pending) → Analytics Dashboard

@@ -6,7 +6,7 @@ Final comprehensive verification test for single-page PDFs with no blank space
 import os
 from PyPDF2 import PdfReader
 from src.integrations.spotify_client import SpotifyClient
-from src.reporting.table_generator import TableGenerator
+from src.apps.charts.pdf import TableGenerator
 from src.core import config
 from collections import defaultdict
 from datetime import datetime

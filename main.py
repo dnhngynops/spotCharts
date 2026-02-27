@@ -4,8 +4,9 @@ Main orchestration script for Spotify Charts automation
 import os
 from datetime import datetime
 from src.integrations.spotify_client import SpotifyClient
-from src.reporting.table_generator import TableGenerator
-from src.reporting.dashboard_generator import DashboardGenerator
+from src.integrations.supabase_client import SupabaseClient
+from src.apps.charts.pdf import TableGenerator
+from src.apps.charts.generator import DashboardGenerator
 from src.integrations.google_drive_client import GoogleDriveClient
 from src.integrations.email_client import EmailClient
 from src.core import config
@@ -42,10 +43,57 @@ def main():
                 print(f"      #{t.get('position', '?')}: {t.get('track_name', 'Unknown')} - {t.get('artist', 'Unknown')}")
         print("   === END DEBUG ===\n")
 
+        # Step 1.3: Enrich tracks with Genius credits
+        from src.integrations.genius_client import GeniusClient
+        if GeniusClient.is_configured():
+            print("\n1.3. Fetching Genius credits for chart tracks...")
+            try:
+                genius = GeniusClient()
+                seen_ids: set = set()
+                genius_map: dict = {}
+                for t in tracks:
+                    tid = t.get('track_id') or ''
+                    if not tid or tid in seen_ids:
+                        continue
+                    seen_ids.add(tid)
+                    primary_artist = (
+                        (t.get('artists') or [{}])[0].get('name', '')
+                        or t.get('artist', '')
+                    )
+                    result = genius.get_credits(t.get('track_name', ''), primary_artist)
+                    if result.get('source') == 'genius':
+                        genius_map[tid] = result
+                # Attach genius_credits to every instance of each track dict
+                for t in tracks:
+                    tid = t.get('track_id') or ''
+                    if tid in genius_map:
+                        t['genius_credits'] = genius_map[tid]
+                print(f"   ✓ Genius credits: {len(genius_map)}/{len(seen_ids)} unique tracks enriched")
+            except Exception as e:
+                print(f"   Warning: Genius enrichment failed: {e}")
+                print("   Continuing without Genius credits...")
+        else:
+            print("\n1.3. Skipping Genius credits (GENIUS_ACCESS_TOKEN not configured)")
+
+        # Shared timestamp used for filenames and as the Supabase run_id
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+        # Step 1.5: Persist enriched tracks to Supabase
+        if SupabaseClient.is_configured():
+            print("\n1.5. Saving tracks to Supabase...")
+            try:
+                supabase = SupabaseClient()
+                supabase.save_run(timestamp, tracks)
+                print(f"   ✓ Saved {len(tracks)} chart entries to Supabase (run: {timestamp})")
+            except Exception as e:
+                print(f"   Warning: Supabase write failed: {e}")
+                print("   Continuing without Supabase persistence...")
+        else:
+            print("\n1.5. Skipping Supabase (SUPABASE_URL / SUPABASE_SERVICE_KEY not configured)")
+
         # Step 2: Generate reports
         print("\n2. Generating reports...")
         table_generator = TableGenerator()
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
         # Create output directory if needed
         output_dir = config.REPORT_CONFIG['output_dir']
@@ -68,7 +116,7 @@ def main():
             dashboard_generator = DashboardGenerator()
             html_filename = f'spotify_charts_dashboard_{timestamp}.html'
             html_file_path = os.path.join(output_dir, html_filename)
-            dashboard_generator.generate_dashboard(tracks, html_file_path)
+            dashboard_generator.generate_dashboard(tracks, html_file_path, run_id=timestamp)
             generated_files.append(html_file_path)
             print(f"   ✓ HTML dashboard saved to: {html_file_path}")
 
@@ -94,26 +142,29 @@ def main():
             print("   Warning: No report formats enabled in configuration")
             return
 
-        # Step 3: Upload to Google Drive
-        print("\n3. Uploading to Google Drive...")
+        # Step 3: Upload to Google Drive (skipped unless GOOGLE_DRIVE_ENABLED=true)
         uploaded_file_ids = []
-        try:
-            drive_client = GoogleDriveClient()
+        if config.GOOGLE_DRIVE_ENABLED:
+            print("\n3. Uploading to Google Drive...")
+            try:
+                drive_client = GoogleDriveClient()
 
-            # Create date-based folder (e.g., "2026-01-12")
-            date_folder_name = datetime.now().strftime('%Y-%m-%d')
-            print(f"   Creating/finding date folder: {date_folder_name}")
-            date_folder_id = drive_client.get_or_create_folder(date_folder_name)
-            print(f"   ✓ Date folder ready (ID: {date_folder_id})")
+                # Create date-based folder (e.g., "2026-01-12")
+                date_folder_name = datetime.now().strftime('%Y-%m-%d')
+                print(f"   Creating/finding date folder: {date_folder_name}")
+                date_folder_id = drive_client.get_or_create_folder(date_folder_name)
+                print(f"   ✓ Date folder ready (ID: {date_folder_id})")
 
-            # Upload files to the date folder
-            for file_path in generated_files:
-                file_id = drive_client.upload_file(file_path, folder_id=date_folder_id)
-                uploaded_file_ids.append(file_id)
-                print(f"   ✓ Uploaded {os.path.basename(file_path)} (ID: {file_id})")
-        except Exception as e:
-            print(f"   Warning: Failed to upload to Google Drive: {e}")
-            print("   Continuing with email notification...")
+                # Upload files to the date folder
+                for file_path in generated_files:
+                    file_id = drive_client.upload_file(file_path, folder_id=date_folder_id)
+                    uploaded_file_ids.append(file_id)
+                    print(f"   ✓ Uploaded {os.path.basename(file_path)} (ID: {file_id})")
+            except Exception as e:
+                print(f"   Warning: Failed to upload to Google Drive: {e}")
+                print("   Continuing with email notification...")
+        else:
+            print("\n3. Skipping Google Drive upload (GOOGLE_DRIVE_ENABLED=false)")
 
         # Step 4: Send email notification
         print("\n4. Sending email notification...")

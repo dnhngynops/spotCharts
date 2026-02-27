@@ -42,15 +42,31 @@ src/
 │   ├── __init__.py
 │   ├── spotify_client.py          # Spotify API + Selenium hybrid client
 │   ├── selenium_spotify_client.py # Selenium web scraping for editorial playlists
+│   ├── supabase_client.py         # Supabase persistence (songs, albums, artists, positions)
 │   ├── google_drive_client.py     # Google Drive API integration
 │   └── email_client.py            # Email sending via SMTP
 │
-├── reporting/                     # Report generation modules
+├── apps/                          # Product views — one sub-package per distinct view
 │   ├── __init__.py
-│   ├── table_generator.py         # HTML table generation and formatting (for PDFs)
-│   ├── dashboard_generator.py     # HTML dashboard with cross-playlist analytics
-│   ├── pdf_generator.py           # PDF report generation (WeasyPrint)
-│   └── report_generator.py        # Comprehensive reports (placeholder)
+│   ├── shell/                     # Shared Jinja2 environment for all apps
+│   │   ├── __init__.py
+│   │   └── layout.py              # get_env() → Jinja2 Environment + FileSystemLoader
+│   ├── charts/                    # Spotify charts dashboard + PDF reports
+│   │   ├── __init__.py
+│   │   ├── generator.py           # DashboardGenerator (HTML analytics dashboard)
+│   │   └── pdf.py                 # PDFGenerator + TableGenerator (WeasyPrint PDFs)
+│   ├── deal_projector/            # Revenue / deal projection calculator (stub)
+│   │   ├── __init__.py
+│   │   └── generator.py           # DealProjectorGenerator stub
+│   └── rosters/                   # A&R rosters view (stub)
+│       ├── __init__.py
+│       └── generator.py           # RostersGenerator stub
+│
+├── reporting/                     # Backwards-compatibility shims (do not add logic here)
+│   ├── __init__.py                # Re-exports TableGenerator, DashboardGenerator
+│   ├── dashboard_generator.py     # Shim → src.apps.charts.generator.DashboardGenerator
+│   ├── pdf_generator.py           # Shim → src.apps.charts.pdf.PDFGenerator
+│   └── table_generator.py         # Shim → src.apps.charts.pdf.TableGenerator
 │
 ├── analytics/                     # Analytics modules (placeholders for future)
 │   ├── __init__.py
@@ -110,12 +126,25 @@ docs/
 
 ## Templates (`templates/`)
 
-HTML templates for report generation:
+HTML templates for report generation, split by concern:
 
 ```
 templates/
-├── table_template.html            # Template for PDF reports (single playlist)
-└── dashboard_template.html        # Template for HTML analytics dashboard (all playlists)
+├── shell/
+│   └── base.html                  # Outer shell: <head> CSS, sidebar, {% include %} app views
+├── charts/
+│   ├── dashboard.html             # Charts view HTML + JS ({% include %}d by shell/base.html)
+│   └── table.html                 # Per-playlist PDF table (used by WeasyPrint)
+├── deal_projector/
+│   └── projector.html             # Deal projector view HTML + JS ({% include %}d by shell)
+├── components/
+│   └── profile_modal.html         # Shared artist/track/album profile modal HTML + JS
+├── rosters/
+│   └── placeholder.html           # Rosters coming-soon stub
+├── account/
+│   └── placeholder.html           # Account coming-soon stub
+├── dashboard_template.html        # Legacy monolithic template (kept for reference)
+└── table_template.html            # Legacy PDF template (kept for reference)
 ```
 
 ## Scripts (`scripts/`)
@@ -186,10 +215,16 @@ from src.core import config
 
 # Integrations
 from src.integrations.spotify_client import SpotifyClient
+from src.integrations.supabase_client import SupabaseClient
 from src.integrations.google_drive_client import GoogleDriveClient
 from src.integrations.email_client import EmailClient
 
-# Reporting
+# Apps (canonical — use these in new code)
+from src.apps.charts.generator import DashboardGenerator
+from src.apps.charts.pdf import TableGenerator, PDFGenerator
+from src.apps.shell.layout import get_env  # shared Jinja2 environment
+
+# Reporting shims (backwards-compatible — still work but don't use in new code)
 from src.reporting.table_generator import TableGenerator
 from src.reporting.dashboard_generator import DashboardGenerator
 from src.reporting.pdf_generator import PDFGenerator
@@ -216,7 +251,8 @@ from src.utils.browser import BrowserManager
 ## Navigation Tips
 
 - **To modify data collection**: See `src/integrations/`
-- **To change report formatting**: See `src/reporting/` and `templates/`
+- **To change report formatting**: See `src/apps/charts/` and `templates/charts/`
+- **To add a new product view**: Create `src/apps/<name>/generator.py` + `templates/<name>/` subtree
 - **To add new features**: Add modules to appropriate `src/` subdirectory
 - **To configure settings**: Edit `.env` and `src/core/config.py`
 - **To run tests**: Execute scripts in `tests/` directory

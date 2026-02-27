@@ -37,6 +37,7 @@ env/
 .DS_Store
 
 # Project-specific
+backend copy/
 credentials/google-drive-credentials.json
 token.pickle
 data/*

@@ -76,6 +76,9 @@ jobs:
           PLAYLIST_3_ID: ${{ secrets.PLAYLIST_3_ID }}
           PLAYLIST_4_ID: ${{ secrets.PLAYLIST_4_ID }}
           PLAYLIST_5_ID: ${{ secrets.PLAYLIST_5_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           cat > .env << EOF
           # Spotify API Configuration
@@ -100,6 +103,11 @@ jobs:
           EMAIL_PASSWORD=$EMAIL_PASSWORD
           EMAIL_FROM=$EMAIL_FROM
           EMAIL_TO=$EMAIL_TO
+
+          # Supabase (intermediate storage + historical analytics)
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY
 
           # Report Generation Configuration
           GENERATE_HTML=true

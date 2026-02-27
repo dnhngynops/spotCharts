@@ -140,11 +140,21 @@ class ChromeDriverManager:
         chrome_options.add_argument('--disable-extensions')
         chrome_options.add_argument('--disable-plugins')
         chrome_options.add_argument('--blink-settings=imagesEnabled=false')
-        
+        # Reduce Chrome memory use (helps on low-RAM machines)
+        chrome_options.add_argument('--disable-background-networking')
+        chrome_options.add_argument('--disable-default-apps')
+        chrome_options.add_argument('--disable-sync')
+        chrome_options.add_argument('--metrics-recording-only')
+        chrome_options.add_argument('--no-first-run')
         if uc_options:
             uc_options.add_argument('--disable-extensions')
             uc_options.add_argument('--disable-plugins')
             uc_options.add_argument('--blink-settings=imagesEnabled=false')
+            uc_options.add_argument('--disable-background-networking')
+            uc_options.add_argument('--disable-default-apps')
+            uc_options.add_argument('--disable-sync')
+            uc_options.add_argument('--metrics-recording-only')
+            uc_options.add_argument('--no-first-run')
 
         # User agent to avoid detection
         user_agent = (

@@ -1,3 +1,4 @@
+requests>=2.28.0
 spotipy>=2.23.0
 google-api-python-client>=2.100.0
 google-auth-httplib2>=0.1.1
@@ -13,4 +14,7 @@ webdriver-manager>=4.0.1
 
 # PDF generation
 weasyprint>=60.0
+
+# Supabase (intermediate data storage + historical analytics)
+supabase>=2.0.0
 

@@ -13,8 +13,7 @@ def test_template_changes():
 
     template_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
-        'templates',
-        'table_template.html'
+        'templates', 'charts', 'table.html'
     )
 
     print("=" * 80)

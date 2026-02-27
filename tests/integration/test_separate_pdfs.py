@@ -6,7 +6,7 @@ This script tests generating individual PDFs for each playlist with playlist nam
 import os
 from datetime import datetime
 from src.integrations.spotify_client import SpotifyClient
-from src.reporting.table_generator import TableGenerator
+from src.apps.charts.pdf import TableGenerator
 from src.core import config
 from collections import defaultdict
 

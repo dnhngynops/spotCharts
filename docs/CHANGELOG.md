@@ -4,6 +4,126 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [3.2.0] - 2026-02-25
+
+### Added — Company / Representation Layer (A&R CRM scaffolding)
+
+#### SQL (`sql/`)
+
+- **`sql/seed_representation_types.sql`** — run once in Supabase after `schema.sql` to complete the representation system:
+  - Seeds 10 `representation_types` rows (`Record Label`, `Music Publisher`, `Management`, etc.)
+  - Creates `updated_at` triggers for `companies`, `representations`, `company_staff`
+  - Creates `normalize_company_name` trigger (auto-populates `normalized_name` on insert/update)
+  - Adds date-ordering and `is_active`/`is_current` consistency constraints
+  - Creates 3 views: `active_representations`, `company_rosters`, `credit_representation_summary`
+  - Adds composite indexes for common representation query patterns
+
+#### Python (`src/integrations/`, `src/utils/`)
+
+- **`src/integrations/representation_client.py`** — `RepresentationClient` class:
+  - `is_configured()` / constructor follow the same pattern as `SupabaseClient`
+  - `_load_type_map()` queries `representation_types` at init time — no hardcoded IDs
+  - `get_or_create_company(name, type)` — upserts company, merges `company_types` array
+  - `get_company_by_name(name)` / `get_company_by_id(id)` — lookups
+  - `create_representation(credit_id, company_id, type_key)` — idempotent link creation
+  - `get_representations_for_credit(credit_id)` / `get_credits_for_company(company_id)` — queries with optional type filter
+  - `update_representation_verified(credit_id, company_id)` — mark verified
+  - `create_company_staff(credit_id, company_id, job_title)` — link person to company
+  - `get_company_staff(company_id)` — query with credit join
+  - `get_statistics()` — system-wide rollup
+
+- **`src/utils/entity_classifier.py`** — `EntityClassifier` class (ported from backend copy):
+  - `classify(name, role)` → `EntityClassification(entity_type, confidence, method, reasoning)`
+  - Hybrid strategy: role-based detection first, name-pattern fallback, hybrid, default
+  - `classify_batch(entities)` / `get_statistics(classifications)` for batch use
+  - `classify_entity(name, role)` — module-level convenience function
+  - Python 3.8 compatible
+
+---
+
+## [3.1.0] - 2026-02-18
+
+### Added - Supabase Client, SQL Schema, and Utility Scripts
+
+#### Supabase Integration (`src/integrations/supabase_client.py`)
+
+- **`SupabaseClient` rewritten for v2.0 schema** — now targets `sql/schema.sql` directly
+  - Writes in FK-dependency order: `playlists` → `playlist_scrapes` → `genres` → `credits` → `credit_genres` → `albums` → `songs` → `song_credits` → `song_genres` → `playlist_songs`
+  - `_upsert_playlists()`: upserts by `spotify_playlist_id`; returns DB ID map
+  - `_insert_scrape()`: inserts one `playlist_scrapes` row per run; returns `scrape_id`
+  - `_ensure_role()`: select-or-insert the "Artist" role into `roles`
+  - `_upsert_genres()`: insert-or-ignore by `genre_name`; fetches full ID map via SELECT
+  - `_upsert_credits()`: upserts artists; applies primary-artist enrichment (image, followers, popularity) to the first artist on each track only
+  - `_upsert_credit_genres()`: assigns track genres to all artists on the track (approximation — Spotify track API does not expose per-artist genre breakdown)
+  - `_upsert_albums()`: upserts by `spotify_id`; maps `album_type` to schema CHECK values; normalises Spotify release dates (`YYYY` / `YYYY-MM` → `YYYY-MM-DD`)
+  - `_upsert_songs()`: deduplicates tracks by track ID; FKs to album; normalises release dates
+  - `_upsert_song_credits()` / `_upsert_song_genres()`: junction table upserts with `ignore_duplicates=True`
+  - `_insert_playlist_songs()`: inserts position observations with `ignore_duplicates=True`
+  - `_batch_upsert()`: internal helper; splits any payload into 500-row batches
+  - `_extract_track_id()`: prefers `track['track_id']`; falls back to parsing `spotify_url`
+  - Supabase Python SDK (`supabase>=2.0.0`) added to `requirements.txt`
+  - The client remains optional: the pipeline continues silently if credentials are absent
+
+#### Database Schema (`sql/schema.sql`)
+
+- Added `sql/schema.sql` — the v2.0 normalised schema (designed for future `supabase_client.py` rewrite)
+  - See [3.0.0] release notes for full schema details
+
+#### Utility Scripts (`scripts/`)
+
+- **`scripts/dry_run_enrichment.py`**: Run enrichment on a single playlist without generating reports, uploading, or sending email
+  - `--playlist-index N`: select which configured playlist to scrape (0-based, default 0)
+  - `--max-tracks N`: limit collection to first N tracks (default 5 for speed)
+  - `--save-json`: write full enriched track list to `output/dry_run_enrichment_*.json`
+  - Prints all keys present on tracks, enrichment field values for the first 3 tracks, and a one-line album/artist summary per track — useful for inspecting API enrichment output without a full pipeline run
+
+#### Configuration
+
+- **Google Drive disabled by default**: `GOOGLE_DRIVE_ENABLED=false` in `.env.example`; pipeline skips upload step unless explicitly re-enabled
+
+---
+
+## [3.0.0] - 2026-02-17
+
+### Added - Supabase Schema v2.0 & Documentation Overhaul
+
+#### Database Schema (`sql/schema.sql`)
+
+- **New `albums` table**: Central A&R entity for album profiles
+  - Spotify metadata: `spotify_id`, `name`, `album_type`, `release_date`, `total_tracks`, `image_url`
+  - `all_tracks` JSONB: caches full track listing from `_fetch_album_data()` for dashboard album modals
+  - `label_id` FK to `companies` for label attribution
+  - `songs.album_id` FK: each charted song now points to its album row
+
+- **New `album_credits` table**: Album-level credits junction (exec producers, A&R, featured artists)
+- **New `album_genres` table**: Album ↔ genre junction
+- **Removed `billboard_charts` table**: Billboard and all external charts stored as `playlists` rows with `source_type = 'billboard'`
+- **`playlists.source_type`**: `'spotify_editorial' | 'spotify_personal' | 'billboard' | 'apple_music' | 'youtube_music' | 'other'`
+- **Position history on `playlist_songs`**: Added `previous_position`, `peak_position`, `weeks_on_chart`
+- **Unique constraints added**: `uq_playlist_songs`, `uq_song_credits`, `uq_album_credits`, `uq_song_genres`, `uq_album_genres`, `uq_credit_genres`
+- **`GENERATED ALWAYS AS IDENTITY`**: All PKs migrated from raw sequence references
+- **Consistent `timestamptz`**: Corrected `companies`, `company_staff`, `representations`, `representation_types`
+- **Deferred self-referencing FKs**: `genres.parent_genre_id`, `companies.parent_company_id`
+
+#### Documentation
+
+- **`CLAUDE.md`**: Updated project overview, data flow, and Supabase schema table summary
+- **`docs/ARCHITECTURE.md`**: Added Step 1.5 (Supabase write order) and Database Architecture section
+- **`docs/SECRETS_CHECKLIST.md`**: Added Supabase secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`)
+
+### Design decisions
+
+- Charts-as-playlists: Billboard uses `source_type = 'billboard'`; position history on `playlist_songs` serves both Spotify and external charts.
+- Albums first-class: Album data the pipeline already fetches now has a normalized home.
+- `all_tracks` JSONB: Dashboard album modals work without requiring every non-charted track to be individually upserted.
+- Credits as unified entity: Artists, producers, managers, A&R share `credits`, differentiated by `credit_category` and role.
+
+### Pending
+
+- **`supabase_client.py` rewrite**: Targets old `runs`/`chart_entries` tables; must be rewritten for v2.0 schema.
+
+---
+
 ## [2.5.1] - 2026-02-11
 
 ### Enhanced - Album Profile Modal Improvements

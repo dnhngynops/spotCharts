@@ -1,6 +1,9 @@
 """
-Report generation and formatting
-"""
-from .table_generator import TableGenerator
+Report generation — backwards-compatibility shim.
 
-__all__ = ['TableGenerator']
+Implementations have moved to src/apps/charts/.
+"""
+from src.apps.charts.pdf import TableGenerator
+from src.apps.charts.generator import DashboardGenerator
+
+__all__ = ['TableGenerator', 'DashboardGenerator']

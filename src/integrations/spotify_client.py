@@ -6,14 +6,29 @@ playlist tracks and chart data. The Spotify API is used only to enrich track
 metadata with additional information like album details, preview URLs, and
 popularity scores.
 """
+import time
+from threading import Lock
+
+import requests
 import spotipy
+from requests.adapters import HTTPAdapter
 from spotipy.oauth2 import SpotifyClientCredentials
 from typing import List, Dict, Optional
+from urllib3.util.retry import Retry
+
 from src.core import config
 
 
 class SpotifyClient:
     """Client for collecting Spotify data via Selenium with API enrichment"""
+
+    # Class-level rate-limit state shared across all instances in a process
+    _rate_limit_lock = Lock()
+    _last_request_time: float = 0.0
+    _min_request_interval: float = 0.1   # 100 ms → ≤10 req/s
+    _consecutive_429s: int = 0
+    _max_consecutive_429s: int = 5
+    _rate_limit_wait_time: float = 0.0
 
     def __init__(self, use_api_enrichment: bool = True, headless: bool = True):
         """
@@ -37,13 +52,103 @@ class SpotifyClient:
                         client_id=config.SPOTIFY_CLIENT_ID,
                         client_secret=config.SPOTIFY_CLIENT_SECRET
                     )
-                    self.client = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+                    session = self._build_session()
+                    try:
+                        self.client = spotipy.Spotify(
+                            client_credentials_manager=client_credentials_manager,
+                            requests_session=session,
+                        )
+                    except TypeError:
+                        # Older spotipy versions don't accept requests_session
+                        self.client = spotipy.Spotify(
+                            client_credentials_manager=client_credentials_manager
+                        )
                 except Exception as e:
                     print(f"Warning: Failed to initialize Spotify API: {e}. API enrichment disabled.")
                     self.use_api_enrichment = False
 
         self.headless = headless
         self._selenium_client = None
+
+    @staticmethod
+    def _build_session() -> requests.Session:
+        """
+        Build a requests.Session with retry strategy and per-request timeouts.
+
+        The retry strategy handles transient server errors (5xx) and rate
+        limits (429) at the HTTP transport level. Application-level 429
+        handling in _handle_rate_limit_error adds exponential backoff on top.
+        """
+        session = requests.Session()
+
+        retry_strategy = Retry(
+            total=2,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "OPTIONS"],
+            respect_retry_after_header=True,
+        )
+        adapter = HTTPAdapter(
+            max_retries=retry_strategy,
+            pool_connections=10,
+            pool_maxsize=20,
+        )
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+
+        # Patch session.request to always include a timeout so hung connections
+        # don't stall the pipeline indefinitely.
+        _original_request = session.request
+        def _request_with_timeout(*args, **kwargs):
+            kwargs.setdefault("timeout", (5, 15))  # (connect, read) seconds
+            return _original_request(*args, **kwargs)
+        session.request = _request_with_timeout  # type: ignore[method-assign]
+
+        return session
+
+    def _enforce_rate_limit(self) -> None:
+        """Ensure a minimum gap between consecutive Spotify API requests."""
+        with self.__class__._rate_limit_lock:
+            now = time.time()
+            elapsed = now - self.__class__._last_request_time
+            wait = self.__class__._min_request_interval - elapsed
+
+            if self.__class__._rate_limit_wait_time > 0:
+                wait = max(wait, self.__class__._rate_limit_wait_time)
+                self.__class__._rate_limit_wait_time = 0.0
+
+            if wait > 0:
+                time.sleep(wait)
+
+            self.__class__._last_request_time = time.time()
+
+    def _handle_rate_limit_error(self, error: Exception) -> bool:
+        """
+        React to a 429 response with exponential backoff.
+
+        Returns True if the caller should retry, False if it should give up.
+        """
+        error_str = str(error).lower()
+        if '429' not in error_str and 'too many requests' not in error_str:
+            with self.__class__._rate_limit_lock:
+                self.__class__._consecutive_429s = 0
+            return False
+
+        with self.__class__._rate_limit_lock:
+            self.__class__._consecutive_429s += 1
+            count = self.__class__._consecutive_429s
+
+        if count >= self.__class__._max_consecutive_429s:
+            print(f"   ⚠  Spotify: {count} consecutive 429s — giving up on this batch")
+            return False
+
+        # Exponential backoff: 1 s, 2 s, 4 s, 8 s, 16 s (capped at 30 s)
+        wait = min(2 ** (count - 1), 30)
+        print(f"   ⚠  Spotify rate limited (429). Waiting {wait}s before retry…")
+        time.sleep(wait)
+        with self.__class__._rate_limit_lock:
+            self.__class__._rate_limit_wait_time = wait
+        return True
     
     def get_playlist_tracks(self, playlist_id: str, playlist_name: Optional[str] = None) -> List[Dict]:
         """
@@ -143,7 +248,21 @@ class SpotifyClient:
 
             try:
                 # Fetch full track data from Spotify API
-                api_track = self.client.track(track_id)
+                self._enforce_rate_limit()
+                api_track = None
+                for attempt in range(3):
+                    try:
+                        api_track = self.client.track(track_id)
+                        with self.__class__._rate_limit_lock:
+                            self.__class__._consecutive_429s = 0
+                        break
+                    except Exception as _e:
+                        if attempt < 2 and self._handle_rate_limit_error(_e):
+                            continue
+                        raise
+                if api_track is None:
+                    enriched_tracks.append(track)
+                    continue
 
                 # Enrich with API data (only fill in missing fields)
                 if not track.get('album') and api_track.get('album'):
@@ -239,6 +358,18 @@ class SpotifyClient:
         print(f"   ✓ Added genres to {genre_count}/{len(enriched_tracks)} tracks")
         print(f"   ✓ Added artist metadata to {artist_enriched_count}/{len(enriched_tracks)} tracks")
 
+        # Fetch and attach album data (full track listings with popularity)
+        print("   Fetching album data (full track listings)...")
+        album_data_map = self._fetch_album_data(enriched_tracks)
+        album_enriched_count = 0
+        for track in enriched_tracks:
+            album_id = track.get('album_id')
+            if album_id and album_id in album_data_map:
+                track['album_all_tracks'] = album_data_map[album_id]['tracks']
+                album_enriched_count += 1
+
+        print(f"   ✓ Added album track listings to {album_enriched_count}/{len(enriched_tracks)} tracks")
+
         return enriched_tracks
 
     def _fetch_artist_data(self, tracks: List[Dict]) -> Dict[str, Dict]:
@@ -275,7 +406,20 @@ class SpotifyClient:
         for i in range(0, len(artist_ids_list), batch_size):
             batch = artist_ids_list[i:i + batch_size]
             try:
-                response = self.client.artists(batch)
+                self._enforce_rate_limit()
+                response = None
+                for attempt in range(3):
+                    try:
+                        response = self.client.artists(batch)
+                        with self.__class__._rate_limit_lock:
+                            self.__class__._consecutive_429s = 0
+                        break
+                    except Exception as _e:
+                        if attempt < 2 and self._handle_rate_limit_error(_e):
+                            continue
+                        raise
+                if response is None:
+                    raise RuntimeError("artists() returned no response after retries")
                 for artist_data in response.get('artists', []):
                     if artist_data:
                         # Extract artist image (first/largest image if available)
@@ -307,6 +451,134 @@ class SpotifyClient:
 
         print(f"   ✓ Fetched data for {len(artist_data_map)}/{len(artist_ids)} unique artists")
         return artist_data_map
+
+    def _fetch_album_data(self, tracks: List[Dict]) -> Dict[str, Dict]:
+        """
+        Fetch album data including full track listings for all unique albums.
+
+        Args:
+            tracks: List of tracks with album information
+
+        Returns:
+            Dict mapping album_id to album data dict with keys:
+            - album_name: str
+            - album_image: str (URL)
+            - album_url: str
+            - release_date: str
+            - album_type: str (album, single, compilation)
+            - total_tracks: int
+            - tracks: list of track dicts with {name, id, track_number, duration_ms, popularity, explicit, spotify_url}
+        """
+        # Collect unique album IDs
+        album_ids = set()
+        for track in tracks:
+            album_id = track.get('album_id')
+            if album_id:
+                album_ids.add(album_id)
+
+        if not album_ids:
+            return {}
+
+        album_data_map = {}
+        album_ids_list = list(album_ids)
+
+        # Batch fetch albums (Spotify API supports up to 20 albums per request)
+        batch_size = 20
+        for i in range(0, len(album_ids_list), batch_size):
+            batch = album_ids_list[i:i + batch_size]
+            try:
+                self._enforce_rate_limit()
+                response = None
+                for attempt in range(3):
+                    try:
+                        response = self.client.albums(batch)
+                        with self.__class__._rate_limit_lock:
+                            self.__class__._consecutive_429s = 0
+                        break
+                    except Exception as _e:
+                        if attempt < 2 and self._handle_rate_limit_error(_e):
+                            continue
+                        raise
+                if response is None:
+                    raise RuntimeError("albums() returned no response after retries")
+                for album_data in response.get('albums', []):
+                    if album_data:
+                        album_id = album_data['id']
+                        images = album_data.get('images', [])
+                        image_url = images[0]['url'] if images else None
+
+                        # Extract all tracks from the album
+                        album_tracks = []
+                        for item in album_data.get('tracks', {}).get('items', []):
+                            track_artists = [a.get('name', '') for a in item.get('artists', [])]
+                            album_tracks.append({
+                                'name': item.get('name', ''),
+                                'id': item.get('id', ''),
+                                'track_number': item.get('track_number', 0),
+                                'duration_ms': item.get('duration_ms', 0),
+                                'explicit': item.get('explicit', False),
+                                'spotify_url': item.get('external_urls', {}).get('spotify', ''),
+                                'artists': track_artists,
+                                'artist': ', '.join(track_artists),
+                                'popularity': None  # Will be fetched separately
+                            })
+
+                        album_data_map[album_id] = {
+                            'album_name': album_data.get('name', ''),
+                            'album_image': image_url,
+                            'album_url': album_data.get('external_urls', {}).get('spotify', ''),
+                            'release_date': album_data.get('release_date', ''),
+                            'album_type': album_data.get('album_type', ''),
+                            'total_tracks': album_data.get('total_tracks', 0),
+                            'tracks': album_tracks
+                        }
+            except Exception as e:
+                print(f"   Warning: Failed to fetch data for album batch: {e}")
+
+        # Now fetch popularity for all album tracks
+        # Collect all track IDs that need popularity
+        track_ids_to_fetch = []
+        track_id_to_album = {}  # Map track_id -> (album_id, track_index)
+        for album_id, album_info in album_data_map.items():
+            for idx, album_track in enumerate(album_info['tracks']):
+                if album_track['id']:
+                    track_ids_to_fetch.append(album_track['id'])
+                    track_id_to_album[album_track['id']] = (album_id, idx)
+
+        # Batch fetch track popularity (Spotify API supports up to 50 tracks per request)
+        if track_ids_to_fetch:
+            popularity_batch_size = 50
+            for i in range(0, len(track_ids_to_fetch), popularity_batch_size):
+                batch = track_ids_to_fetch[i:i + popularity_batch_size]
+                try:
+                    self._enforce_rate_limit()
+                    response = None
+                    for attempt in range(3):
+                        try:
+                            response = self.client.tracks(batch)
+                            with self.__class__._rate_limit_lock:
+                                self.__class__._consecutive_429s = 0
+                            break
+                        except Exception as _e:
+                            if attempt < 2 and self._handle_rate_limit_error(_e):
+                                continue
+                            raise
+                    if response is None:
+                        raise RuntimeError("tracks() returned no response after retries")
+                    for track_data in response.get('tracks', []):
+                        if track_data:
+                            track_id = track_data['id']
+                            popularity = track_data.get('popularity', 0)
+                            preview_url = track_data.get('preview_url')
+                            if track_id in track_id_to_album:
+                                album_id, idx = track_id_to_album[track_id]
+                                album_data_map[album_id]['tracks'][idx]['popularity'] = popularity
+                                album_data_map[album_id]['tracks'][idx]['preview_url'] = preview_url
+                except Exception as e:
+                    print(f"   Warning: Failed to fetch track popularity batch: {e}")
+
+        print(f"   ✓ Fetched data for {len(album_data_map)}/{len(album_ids)} unique albums")
+        return album_data_map
 
     def get_all_playlist_tracks(self, playlist_ids: List[str]) -> List[Dict]:
         """

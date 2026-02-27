@@ -4,7 +4,7 @@ Script to generate PDF reports for all 4 playlists with consistent title sizing
 import os
 from datetime import datetime
 from src.integrations.spotify_client import SpotifyClient
-from src.reporting.table_generator import TableGenerator
+from src.apps.charts.pdf import TableGenerator
 from src.core import config
 
 

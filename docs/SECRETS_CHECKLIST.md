@@ -7,9 +7,32 @@ Use this checklist when setting up GitHub Secrets for the automation workflow.
 
 ---
 
-## ✅ Secrets to Configure (15 total; PLAYLIST_5_ID optional)
+## ✅ Secrets to Configure (18 total; PLAYLIST_5_ID and Supabase optional)
 
-### 1. Spotify API (2 secrets)
+### 1. Supabase (3 secrets — optional but required for historical data)
+
+Supabase is the intermediate data store for chart history, songs, albums, and artists.
+If not configured, the pipeline still runs and generates reports; Supabase writes are silently skipped.
+
+- [ ] **SUPABASE_URL**
+  - Value: `https://xxxxxxxxxxxx.supabase.co`
+  - Get from: Supabase Dashboard → Project Settings → API → Project URL
+
+- [ ] **SUPABASE_ANON_KEY**
+  - Value: Your `anon public` key
+  - Get from: Supabase Dashboard → Project Settings → API → Project API keys
+  - Safe to embed in JS (read-only, subject to Row Level Security)
+
+- [ ] **SUPABASE_SERVICE_KEY**
+  - Value: Your `service_role` key
+  - Get from: Supabase Dashboard → Project Settings → API → Project API keys
+  - **Server-side only** — bypasses RLS; never expose in HTML or client code
+
+**Schema setup**: Before the first pipeline run with Supabase enabled, execute `sql/schema.sql` once in the Supabase SQL Editor. `supabase_client.py` now targets this v2.0 schema directly.
+
+---
+
+### 2. Spotify API (2 secrets)
 
 - [ ] **SPOTIFY_CLIENT_ID**
   - Value: `{YOUR_SPOTIFY_CLIENT_ID}`
@@ -45,7 +68,10 @@ Use this checklist when setting up GitHub Secrets for the automation workflow.
 
 ---
 
-### 3. Google Drive (2 secrets)
+### 3. Google Drive (2 secrets — currently disabled)
+
+> Google Drive upload is **disabled by default** (`GOOGLE_DRIVE_ENABLED=false`).
+> To enable, set `GOOGLE_DRIVE_ENABLED=true` in `.env` or as a GitHub Secret and supply the two secrets below.
 
 - [ ] **GOOGLE_DRIVE_CREDENTIALS**
   - Value: **Full JSON content** from `credentials/google-drive-credentials.json`
@@ -123,6 +149,11 @@ Use this checklist when setting up GitHub Secrets for the automation workflow.
 Use this template to gather all values before adding to GitHub:
 
 ```
+# Supabase (optional — skip if not using historical storage)
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_KEY=
+
 SPOTIFY_CLIENT_ID=
 SPOTIFY_CLIENT_SECRET=
 
