@@ -1,0 +1,644 @@
+        <!-- Deal Projector View -->
+        <div id="view-revenue" class="app-view">
+        <div class="rc-wrapper">
+
+            <!-- Header -->
+            <div class="rc-header">
+                <div>
+                    <h1 class="rc-title"><span class="rc-green">Deal</span> Projector</h1>
+                    <p class="rc-subtitle" id="rc-mode-subtitle">Single Track Mode</p>
+                </div>
+                <div class="rc-date-picker">
+                    <span class="rc-date-label">Simulation Date</span>
+                    <input type="date" id="rc-sim-date" class="rc-input rc-date-input">
+                </div>
+            </div>
+
+            <!-- Nav + mode controls -->
+            <div class="rc-topbar">
+                <div class="rc-tabs">
+                    <button class="rc-tab active" data-rctab="calculator">Calculator</button>
+                    <button class="rc-tab" data-rctab="settings">Model Settings</button>
+                </div>
+                <div class="rc-controls" id="rc-controls">
+                    <div class="rc-mode-toggle">
+                        <button class="rc-mode-btn active" data-rcmode="single">Single Track</button>
+                        <button class="rc-mode-btn" data-rcmode="catalog">Catalog Avg</button>
+                    </div>
+                    <button class="rc-reset-btn" id="rc-reset-btn">↺ Reset</button>
+                </div>
+            </div>
+
+            <!-- Calculator tab -->
+            <div id="rc-tab-calculator" class="rc-tab-content active">
+                <div class="rc-grid">
+
+                    <!-- Left: inputs -->
+                    <div class="rc-left">
+
+                        <!-- Single Track inputs -->
+                        <div id="rc-single-panel" class="rc-panel">
+                            <h2 class="rc-panel-title">Single Track Details</h2>
+                            <p class="rc-panel-desc"><strong>Use for specific assets:</strong> Projects revenue for one song based on current streams and age (trajectory). Best for valuing existing releases.</p>
+                            <div class="rc-form-group">
+                                <label class="rc-label">Track Name</label>
+                                <input type="text" id="rc-track-name" class="rc-input" placeholder="Enter track title...">
+                            </div>
+                            <div class="rc-row">
+                                <div class="rc-form-group">
+                                    <label class="rc-label">Release Date</label>
+                                    <input type="date" id="rc-release-date" class="rc-input">
+                                </div>
+                                <div class="rc-form-group">
+                                    <label class="rc-label">Current Streams</label>
+                                    <input type="number" id="rc-streams" class="rc-input" placeholder="0">
+                                </div>
+                            </div>
+                            <div class="rc-form-group">
+                                <label class="rc-label">Genre Model</label>
+                                <select id="rc-genre" class="rc-input rc-select"></select>
+                            </div>
+                        </div>
+
+                        <!-- Catalog inputs -->
+                        <div id="rc-catalog-panel" class="rc-panel" style="display:none">
+                            <h2 class="rc-panel-title">Artist Catalog Velocity</h2>
+                            <p class="rc-panel-desc"><strong>Use for unreleased material:</strong> Averages past tracks to establish a baseline velocity. Best for projecting future releases.</p>
+                            <div class="rc-form-group">
+                                <label class="rc-label">Artist Name</label>
+                                <input type="text" id="rc-artist-name" class="rc-input" placeholder="Enter artist name...">
+                            </div>
+                            <div class="rc-form-group">
+                                <label class="rc-label">Global Genre Model</label>
+                                <select id="rc-cat-genre" class="rc-input rc-select"></select>
+                            </div>
+                            <div class="rc-form-group">
+                                <div class="rc-label-row">
+                                    <label class="rc-label" style="margin-bottom:0">Representative Tracks</label>
+                                    <button class="rc-add-track-btn" id="rc-add-track-btn">+ Add Track</button>
+                                </div>
+                                <div id="rc-tracks-list" class="rc-tracks-list" style="margin-top:8px"></div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced adjustments -->
+                        <div class="rc-panel">
+                            <h2 class="rc-panel-title">Advanced Adjustments</h2>
+                            <div class="rc-form-group">
+                                <div class="rc-slider-header">
+                                    <label class="rc-label" style="margin-bottom:0">Tail Strength (k)</label>
+                                    <span class="rc-slider-value" id="rc-k-value">0.35</span>
+                                </div>
+                                <input type="range" id="rc-k-slider" class="rc-slider" min="0.1" max="1.0" step="0.05" value="0.35">
+                                <p class="rc-hint">Lower = Faster Decay. Higher = Stronger Tail.</p>
+                            </div>
+                            <div class="rc-form-group">
+                                <div class="rc-slider-header">
+                                    <label class="rc-label" style="margin-bottom:0">LTV Multiplier (x)</label>
+                                    <span class="rc-slider-value" id="rc-ltv-value">2.2x</span>
+                                </div>
+                                <input type="range" id="rc-ltv-slider" class="rc-slider" min="1.0" max="5.0" step="0.1" value="2.2">
+                                <p class="rc-hint">Multiplies Year-1 Revenue to estimate 5-Year Total.</p>
+                            </div>
+                            <div class="rc-form-group">
+                                <label class="rc-label">Additional Costs</label>
+                                <div class="rc-input-prefix">
+                                    <span class="rc-prefix">$</span>
+                                    <input type="number" id="rc-costs" class="rc-input" placeholder="Marketing, Video, etc.">
+                                </div>
+                            </div>
+                        </div>
+
+                    </div><!-- /rc-left -->
+
+                    <!-- Right: results -->
+                    <div class="rc-right">
+                        <div id="rc-results-empty" class="rc-results-empty">
+                            <div class="rc-empty-icon">◎</div>
+                            <h3>Ready to Project</h3>
+                            <p id="rc-empty-hint">Enter the track's release date, current streams, and genre to generate a revenue analysis.</p>
+                        </div>
+                        <div id="rc-results-card" class="rc-results-card" style="display:none">
+                            <div class="rc-results-header">
+                                <div>
+                                    <h2 class="rc-results-name" id="rc-res-name">-</h2>
+                                    <div class="rc-results-meta">
+                                        <span class="rc-badge rc-badge-genre" id="rc-res-genre">-</span>
+                                        <span class="rc-badge rc-badge-catalog" id="rc-res-catalog-badge" style="display:none">-</span>
+                                    </div>
+                                </div>
+                                <div class="rc-results-streams">
+                                    <div class="rc-results-streams-label" id="rc-res-streams-label">Projected Year 1 Streams</div>
+                                    <div class="rc-results-streams-value" id="rc-res-streams">-</div>
+                                </div>
+                            </div>
+                            <div class="rc-metrics-grid">
+                                <div class="rc-metric">
+                                    <div class="rc-metric-label">Est. Year 1 Revenue</div>
+                                    <div class="rc-metric-value rc-metric-green" id="rc-res-revenue">-</div>
+                                </div>
+                                <div class="rc-metric rc-metric-highlight">
+                                    <div class="rc-metric-label">Suggested Advance</div>
+                                    <div class="rc-metric-value rc-metric-primary" id="rc-res-advance">-</div>
+                                    <div class="rc-metric-sub" id="rc-res-margin">Margin: 50%</div>
+                                </div>
+                                <div class="rc-metric">
+                                    <div class="rc-metric-label">Recoupment Time</div>
+                                    <div class="rc-metric-value" id="rc-res-recoup">-</div>
+                                    <div class="rc-metric-sub" id="rc-res-recoup-type">-</div>
+                                </div>
+                                <div class="rc-metric">
+                                    <div class="rc-metric-label">Est. Label 5Y Profit</div>
+                                    <div class="rc-metric-value" id="rc-res-5y">-</div>
+                                    <div class="rc-metric-sub" id="rc-res-ltv-label">-</div>
+                                </div>
+                            </div>
+                            <div class="rc-breakdown">
+                                <h4 class="rc-breakdown-title">Recoupment Breakdown</h4>
+                                <div class="rc-breakdown-row"><span>Advance Amount:</span><span id="rc-bd-advance">-</span></div>
+                                <div class="rc-breakdown-row"><span>Additional Costs:</span><span id="rc-bd-costs">-</span></div>
+                                <div class="rc-breakdown-row rc-breakdown-total"><span>Total Recoupable:</span><span id="rc-bd-total">-</span></div>
+                            </div>
+                            <div class="rc-results-actions">
+                                <button class="rc-btn-secondary" id="rc-export-csv">↓ Download CSV</button>
+                            </div>
+                        </div>
+                    </div><!-- /rc-right -->
+
+                </div><!-- /rc-grid -->
+            </div><!-- /rc-tab-calculator -->
+
+            <!-- Settings tab -->
+            <div id="rc-tab-settings" class="rc-tab-content">
+                <div class="rc-panel rc-settings-panel">
+                    <h2 class="rc-panel-title">Financial Parameters</h2>
+                    <div class="rc-settings-grid">
+                        <div class="rc-form-group">
+                            <label class="rc-label">Spotify Payout Rate ($)</label>
+                            <input type="number" id="rc-spotify-rate" class="rc-input" step="0.0001" value="0.0035">
+                            <p class="rc-hint">Average per-stream payout. (Default: 0.0035)</p>
+                        </div>
+                        <div class="rc-form-group">
+                            <label class="rc-label">DSP Multiplier</label>
+                            <input type="number" id="rc-dsp-mult" class="rc-input" step="0.1" value="1.6">
+                            <p class="rc-hint">Estimates total streams from all DSPs. (1.6 = Spotify ~62% of market)</p>
+                        </div>
+                        <div class="rc-form-group">
+                            <label class="rc-label">Distribution Fee (0.0 – 1.0)</label>
+                            <input type="number" id="rc-dist-fee" class="rc-input" step="0.01" max="1.0" value="0.00">
+                            <p class="rc-hint">e.g. 0.15 for 15% distribution fee.</p>
+                        </div>
+                        <div class="rc-form-group">
+                            <label class="rc-label">Label Share (0.0 – 1.0)</label>
+                            <input type="number" id="rc-label-share" class="rc-input" step="0.05" max="1.0" value="0.50">
+                            <p class="rc-hint">Label's split of net revenue (e.g. 0.5 for 50/50).</p>
+                        </div>
+                        <div class="rc-form-group">
+                            <label class="rc-label">Advance Safety Margin (0.0 – 1.0)</label>
+                            <input type="number" id="rc-adv-margin" class="rc-input" step="0.05" max="1.0" value="0.50">
+                            <p class="rc-hint">Percentage of Year-1 Net Revenue to offer as advance.</p>
+                        </div>
+                    </div>
+                    <div class="rc-recoupment-section">
+                        <label class="rc-label">Recoupment Source Strategy</label>
+                        <div class="rc-recoup-options">
+                            <label class="rc-recoup-option rc-recoup-selected">
+                                <input type="radio" name="rc-recoup-type" value="joint" checked>
+                                <div>
+                                    <span class="rc-recoup-title">Joint / Off-Top</span>
+                                    <span class="rc-recoup-desc">Recoup from total net revenue (Faster).</span>
+                                </div>
+                            </label>
+                            <label class="rc-recoup-option">
+                                <input type="radio" name="rc-recoup-type" value="artist_share">
+                                <div>
+                                    <span class="rc-recoup-title">Artist Share Only</span>
+                                    <span class="rc-recoup-desc">Recoup from artist's % share (Slower).</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /rc-tab-settings -->
+
+        </div><!-- /rc-wrapper -->
+        </div><!-- /div#view-revenue -->
+
+    <!-- ── Deal Projector Logic ─────────────────────────────────── -->
+    <script>
+    (function () {
+        'use strict';
+
+        // ── 1. GENRE PARAMS (ported from Royalty Projection Calculator 3.0) ──
+        const GENRE_PARAMS = {
+            pop:               { k: 0.35, curve_type: 'standard',    label: 'Pop (General)',            ltv_multiplier: 2.2 },
+            indie_pop:         { k: 0.4,  curve_type: 'standard',    label: 'Indie Pop',                ltv_multiplier: 2.4 },
+            k_pop:             { k: 0.25, curve_type: 'front_loaded', label: 'K-Pop',                   ltv_multiplier: 1.8 },
+            latin_pop:         { k: 0.35, curve_type: 'standard',    label: 'Latin Pop',                ltv_multiplier: 2.3 },
+            bedroom_pop:       { k: 0.3,  curve_type: 'standard',    label: 'Bedroom Pop',              ltv_multiplier: 2.0 },
+            europop:           { k: 0.3,  curve_type: 'standard',    label: 'Europop',                  ltv_multiplier: 2.1 },
+            dance_pop:         { k: 0.3,  curve_type: 'standard',    label: 'Dance Pop',                ltv_multiplier: 2.0 },
+            hip_hop:           { k: 0.25, curve_type: 'front_loaded', label: 'Hip Hop (General)',       ltv_multiplier: 1.8 },
+            trap:              { k: 0.2,  curve_type: 'front_loaded', label: 'Trap',                    ltv_multiplier: 1.5 },
+            drill_us:          { k: 0.15, curve_type: 'front_loaded', label: 'Drill (US)',              ltv_multiplier: 1.4 },
+            drill_uk:          { k: 0.2,  curve_type: 'front_loaded', label: 'Drill (UK)',              ltv_multiplier: 1.5 },
+            grime:             { k: 0.25, curve_type: 'front_loaded', label: 'Grime',                   ltv_multiplier: 1.7 },
+            emo_rap:           { k: 0.2,  curve_type: 'front_loaded', label: 'Emo Rap',                 ltv_multiplier: 1.4 },
+            cloud_rap:         { k: 0.2,  curve_type: 'front_loaded', label: 'Cloud Rap',               ltv_multiplier: 1.5 },
+            conscious_hip_hop: { k: 0.4,  curve_type: 'standard',    label: 'Conscious Hip Hop',        ltv_multiplier: 2.5 },
+            french_rap:        { k: 0.25, curve_type: 'front_loaded', label: 'French Rap',              ltv_multiplier: 1.8 },
+            german_rap:        { k: 0.25, curve_type: 'front_loaded', label: 'German Rap',              ltv_multiplier: 1.8 },
+            rnb:               { k: 0.35, curve_type: 'standard',    label: 'R&B',                      ltv_multiplier: 2.3 },
+            neo_soul:          { k: 0.45, curve_type: 'steady',      label: 'Neo-Soul',                 ltv_multiplier: 2.8 },
+            trap_soul:         { k: 0.3,  curve_type: 'standard',    label: 'Trap Soul',                ltv_multiplier: 2.0 },
+            alt_rnb:           { k: 0.35, curve_type: 'standard',    label: 'Alt R&B',                  ltv_multiplier: 2.2 },
+            rock:              { k: 0.45, curve_type: 'steady',      label: 'Rock (General)',            ltv_multiplier: 3.0 },
+            alt_rock:          { k: 0.4,  curve_type: 'standard',    label: 'Alt Rock',                 ltv_multiplier: 2.8 },
+            indie_rock:        { k: 0.4,  curve_type: 'standard',    label: 'Indie Rock',               ltv_multiplier: 2.6 },
+            pop_punk:          { k: 0.35, curve_type: 'standard',    label: 'Pop Punk',                 ltv_multiplier: 2.4 },
+            metal:             { k: 0.5,  curve_type: 'steady',      label: 'Metal',                    ltv_multiplier: 3.2 },
+            heavy_metal:       { k: 0.55, curve_type: 'steady',      label: 'Heavy Metal',              ltv_multiplier: 3.5 },
+            metalcore:         { k: 0.4,  curve_type: 'standard',    label: 'Metalcore',                ltv_multiplier: 2.5 },
+            psychedelic_rock:  { k: 0.5,  curve_type: 'steady',      label: 'Psychedelic Rock',         ltv_multiplier: 3.2 },
+            classic_rock:      { k: 0.6,  curve_type: 'steady',      label: 'Classic Rock',             ltv_multiplier: 3.8 },
+            shoegaze:          { k: 0.45, curve_type: 'steady',      label: 'Shoegaze',                 ltv_multiplier: 2.9 },
+            edm_mainstage:     { k: 0.2,  curve_type: 'front_loaded', label: 'EDM (Mainstage)',         ltv_multiplier: 1.6 },
+            house:             { k: 0.45, curve_type: 'steady',      label: 'House',                    ltv_multiplier: 3.0 },
+            tech_house:        { k: 0.4,  curve_type: 'standard',    label: 'Tech House',               ltv_multiplier: 2.8 },
+            deep_house:        { k: 0.5,  curve_type: 'steady',      label: 'Deep House',               ltv_multiplier: 3.5 },
+            jazz_house:        { k: 0.5,  curve_type: 'steady',      label: 'Jazz House',               ltv_multiplier: 3.5 },
+            minimal_house:     { k: 0.3,  curve_type: 'front_loaded', label: 'Minimal House',           ltv_multiplier: 1.5 },
+            funky_house:       { k: 0.9,  curve_type: 'linear',      label: 'Funky House',              ltv_multiplier: 3.0 },
+            prog_house:        { k: 0.4,  curve_type: 'standard',    label: 'Prog House',               ltv_multiplier: 2.5 },
+            techno:            { k: 0.5,  curve_type: 'steady',      label: 'Techno',                   ltv_multiplier: 3.4 },
+            drum_and_bass:     { k: 0.35, curve_type: 'standard',    label: 'Drum & Bass',              ltv_multiplier: 2.5 },
+            uk_garage:         { k: 0.4,  curve_type: 'steady',      label: 'UK Garage',                ltv_multiplier: 2.8 },
+            trance:            { k: 0.45, curve_type: 'steady',      label: 'Trance',                   ltv_multiplier: 3.1 },
+            dubstep:           { k: 0.25, curve_type: 'front_loaded', label: 'Dubstep',                 ltv_multiplier: 1.9 },
+            hyperpop:          { k: 0.2,  curve_type: 'front_loaded', label: 'Hyperpop',                ltv_multiplier: 1.3 },
+            dark_hyperpop:     { k: 0.1,  curve_type: 'front_loaded', label: 'Dark Hyperpop',           ltv_multiplier: 1.2 },
+            lofi_beats:        { k: 0.7,  curve_type: 'linear',      label: 'Lo-Fi Beats',              ltv_multiplier: 3.2 },
+            ambient:           { k: 0.8,  curve_type: 'linear',      label: 'Ambient',                  ltv_multiplier: 3.5 },
+            hardstyle:         { k: 0.3,  curve_type: 'front_loaded', label: 'Hardstyle',               ltv_multiplier: 2.0 },
+            phonk:             { k: 0.2,  curve_type: 'front_loaded', label: 'Phonk',                   ltv_multiplier: 1.5 },
+            reggaeton:         { k: 0.3,  curve_type: 'front_loaded', label: 'Reggaeton',               ltv_multiplier: 2.2 },
+            latin_trap:        { k: 0.25, curve_type: 'front_loaded', label: 'Latin Trap',              ltv_multiplier: 1.8 },
+            urbano:            { k: 0.3,  curve_type: 'standard',    label: 'Urbano Latino',            ltv_multiplier: 2.1 },
+            regional_mexican:  { k: 0.55, curve_type: 'steady',      label: 'Regional Mexican',         ltv_multiplier: 3.5 },
+            corridos:          { k: 0.5,  curve_type: 'steady',      label: 'Corridos',                 ltv_multiplier: 3.2 },
+            corridos_tumbados: { k: 0.3,  curve_type: 'front_loaded', label: 'Corridos Tumbados',       ltv_multiplier: 2.0 },
+            sertanejo:         { k: 0.6,  curve_type: 'steady',      label: 'Sertanejo',                ltv_multiplier: 3.6 },
+            funk_carioca:      { k: 0.2,  curve_type: 'front_loaded', label: 'Funk Carioca (Brazilian)', ltv_multiplier: 1.6 },
+            cumbia:            { k: 0.55, curve_type: 'steady',      label: 'Cumbia',                   ltv_multiplier: 3.4 },
+            bachata:           { k: 0.5,  curve_type: 'steady',      label: 'Bachata',                  ltv_multiplier: 3.2 },
+            salsa:             { k: 0.6,  curve_type: 'steady',      label: 'Salsa',                    ltv_multiplier: 3.8 },
+            country:           { k: 0.55, curve_type: 'steady',      label: 'Country',                  ltv_multiplier: 3.5 },
+            modern_country:    { k: 0.45, curve_type: 'standard',    label: 'Modern Country',           ltv_multiplier: 3.0 },
+            americana:         { k: 0.55, curve_type: 'steady',      label: 'Americana',                ltv_multiplier: 3.6 },
+            folk:              { k: 0.6,  curve_type: 'steady',      label: 'Folk',                     ltv_multiplier: 3.8 },
+            indie_folk:        { k: 0.5,  curve_type: 'steady',      label: 'Indie Folk',               ltv_multiplier: 3.4 },
+            afrobeats:         { k: 0.4,  curve_type: 'steady',      label: 'Afrobeats',                ltv_multiplier: 2.8 },
+            amapiano:          { k: 0.35, curve_type: 'standard',    label: 'Amapiano',                 ltv_multiplier: 2.6 },
+            dancehall:         { k: 0.4,  curve_type: 'steady',      label: 'Dancehall',                ltv_multiplier: 2.9 },
+            reggae:            { k: 0.6,  curve_type: 'steady',      label: 'Reggae',                   ltv_multiplier: 3.8 },
+            jazz:              { k: 0.65, curve_type: 'steady',      label: 'Jazz',                     ltv_multiplier: 4.0 },
+            classical:         { k: 0.8,  curve_type: 'linear',      label: 'Classical',                ltv_multiplier: 4.5 },
+            blues:             { k: 0.6,  curve_type: 'steady',      label: 'Blues',                    ltv_multiplier: 3.8 },
+            soul:              { k: 0.55, curve_type: 'steady',      label: 'Soul',                     ltv_multiplier: 3.6 },
+            christian_gospel:  { k: 0.6,  curve_type: 'steady',      label: 'Christian/Gospel',         ltv_multiplier: 3.7 },
+            generic:           { k: 0.3,  curve_type: 'standard',    label: 'Generic/Default',          ltv_multiplier: 2.0 }
+        };
+
+        // ── 2. STATE ──
+        const S = {
+            simulationDate: new Date().toISOString().split('T')[0],
+            activeTab: 'calculator',
+            mode: 'single',
+            config: { spotifyRate: 0.0035, dspMultiplier: 1.6, distributionFee: 0.00, labelShare: 0.50, advanceMargin: 0.50, recoupmentType: 'joint' },
+            single:  { name: '', genre: 'pop', releaseDate: '', currentStreams: '', customK: null, customLtvMult: null, costs: 0 },
+            catalog: { name: '', genre: 'pop', customK: null, customLtvMult: null, costs: 0, tracks: [] }
+        };
+
+        // ── 3. LOGIC FUNCTIONS (direct port) ──
+        function getYear1Fraction(daysOld, curveType) {
+            if (daysOld >= 365) return 1.0;
+            if (curveType === 'front_loaded') {
+                if (daysOld <= 60)  return (daysOld / 60) * 0.50;
+                if (daysOld <= 180) return 0.50 + ((daysOld - 60) / 120) * 0.30;
+                return 0.80 + ((daysOld - 180) / 185) * 0.20;
+            }
+            if (curveType === 'steady' || curveType === 'linear') return daysOld / 365.0;
+            // standard
+            let f = daysOld / 365.0;
+            if (daysOld < 45) f *= 1.5;
+            return f;
+        }
+
+        function projectSingleTrackYear1(releaseDate, streams, genre, simDateStr, customK) {
+            if (!releaseDate || !streams) return null;
+            const ageDays = Math.ceil((new Date(simDateStr) - new Date(releaseDate)) / 86400000);
+            if (ageDays < 5) return null;
+            const s = parseInt(streams);
+            if (isNaN(s)) return null;
+            const p = GENRE_PARAMS[genre] || GENRE_PARAMS.generic;
+            const k = (customK !== null && customK !== undefined) ? parseFloat(customK) : p.k;
+            if (ageDays <= 365) {
+                const frac = getYear1Fraction(ageDays, p.curve_type);
+                return frac === 0 ? 0 : s / frac;
+            }
+            return s * (365 / (365 + k * (ageDays - 365)));
+        }
+
+        function analyzeCatalogAverage(catalog, simDateStr) {
+            if (!catalog.tracks || catalog.tracks.length === 0) return null;
+            const estimates = catalog.tracks
+                .map(t => projectSingleTrackYear1(t.releaseDate, t.streams, catalog.genre, simDateStr, catalog.customK))
+                .filter(v => v !== null && !isNaN(v));
+            if (estimates.length === 0) return null;
+            return Math.floor(estimates.reduce((a, b) => a + b, 0) / estimates.length);
+        }
+
+        function generateDealOffer(projStreams, cfg, genre, costs, customLtv) {
+            const grossY1   = projStreams * cfg.spotifyRate * cfg.dspMultiplier;
+            const netRev    = grossY1 * (1 - cfg.distributionFee);
+            const advance   = netRev * cfg.advanceMargin;
+            const monthlyIncome = cfg.recoupmentType === 'joint'
+                ? netRev / 12
+                : (netRev * (1 - cfg.labelShare)) / 12;
+            const totalRecoup = advance + costs;
+            const recoupMonths = monthlyIncome > 0 ? totalRecoup / monthlyIncome : 999;
+            const p = GENRE_PARAMS[genre] || GENRE_PARAMS.generic;
+            const ltv = (customLtv !== null && customLtv !== undefined) ? parseFloat(customLtv) : (p.ltv_multiplier || 2.0);
+            const label5yProfit = (netRev * ltv - advance - costs) * cfg.labelShare;
+            return { projStreamsY1: projStreams, estRevenueY1: netRev, suggestedAdvance: advance, totalRecoupable: totalRecoup, costs, recoupMonths, label5yProfit, ltvMult: ltv };
+        }
+
+        const fmtCurrency = v => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
+        const fmtNumber   = v => new Intl.NumberFormat('en-US').format(Math.round(v));
+
+        // ── 4. RENDER ──
+        function src() { return S.mode === 'single' ? S.single : S.catalog; }
+
+        function getKLtv() {
+            const s = src();
+            const p = GENRE_PARAMS[s.genre] || GENRE_PARAMS.generic;
+            return {
+                k:   (s.customK   !== null && s.customK   !== undefined) ? s.customK   : p.k,
+                ltv: (s.customLtvMult !== null && s.customLtvMult !== undefined) ? s.customLtvMult : p.ltv_multiplier,
+                p
+            };
+        }
+
+        function render() {
+            const { k, ltv, p } = getKLtv();
+            const s = src();
+
+            // subtitle
+            const sub = document.getElementById('rc-mode-subtitle');
+            if (sub) sub.textContent = S.mode === 'single' ? 'Single Track Mode' : 'Catalog Average Mode';
+
+            // mode buttons
+            document.querySelectorAll('.rc-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.rcmode === S.mode));
+
+            // tab buttons + panels
+            document.querySelectorAll('.rc-tab').forEach(b => b.classList.toggle('active', b.dataset.rctab === S.activeTab));
+            const calcTab = document.getElementById('rc-tab-calculator');
+            const setTab  = document.getElementById('rc-tab-settings');
+            if (calcTab) calcTab.classList.toggle('active', S.activeTab === 'calculator');
+            if (setTab)  setTab.classList.toggle('active',  S.activeTab === 'settings');
+
+            // show/hide input panels
+            const sp = document.getElementById('rc-single-panel');
+            const cp = document.getElementById('rc-catalog-panel');
+            if (sp) sp.style.display = S.mode === 'single'  ? '' : 'none';
+            if (cp) cp.style.display = S.mode === 'catalog' ? '' : 'none';
+
+            // controls visibility
+            const ctrl = document.getElementById('rc-controls');
+            if (ctrl) ctrl.style.display = S.activeTab === 'calculator' ? '' : 'none';
+
+            // sliders (only update if not focused to avoid jump while dragging)
+            const kSlider = document.getElementById('rc-k-slider');
+            if (kSlider && document.activeElement !== kSlider) kSlider.value = k;
+            const ltvSlider = document.getElementById('rc-ltv-slider');
+            if (ltvSlider && document.activeElement !== ltvSlider) ltvSlider.value = ltv;
+            const kVal = document.getElementById('rc-k-value');
+            if (kVal) kVal.textContent = parseFloat(k).toFixed(2);
+            const ltvVal = document.getElementById('rc-ltv-value');
+            if (ltvVal) ltvVal.textContent = parseFloat(ltv).toFixed(1) + 'x';
+
+            renderTracks();
+
+            // compute projection
+            let proj = null;
+            if (S.mode === 'single') {
+                proj = projectSingleTrackYear1(S.single.releaseDate, S.single.currentStreams, S.single.genre, S.simulationDate, S.single.customK);
+            } else {
+                proj = analyzeCatalogAverage(S.catalog, S.simulationDate);
+            }
+
+            const emptyEl = document.getElementById('rc-results-empty');
+            const cardEl  = document.getElementById('rc-results-card');
+            const hintEl  = document.getElementById('rc-empty-hint');
+            if (proj === null) {
+                if (emptyEl) emptyEl.style.display = '';
+                if (cardEl)  cardEl.style.display  = 'none';
+                if (hintEl)  hintEl.textContent = S.mode === 'single'
+                    ? "Enter the track's release date, current streams, and genre to generate a revenue analysis."
+                    : "Add past tracks for this artist to calculate an average velocity and projected deal offer.";
+            } else {
+                if (emptyEl) emptyEl.style.display = 'none';
+                if (cardEl)  cardEl.style.display  = '';
+                renderResults(generateDealOffer(proj, S.config, s.genre, s.costs || 0, s.customLtvMult), p, k, ltv, s);
+            }
+        }
+
+        function renderTracks() {
+            const list = document.getElementById('rc-tracks-list');
+            if (!list) return;
+            list.innerHTML = '';
+            if (S.catalog.tracks.length === 0) {
+                list.innerHTML = '<div class="rc-tracks-empty">No tracks added yet. Click "+ Add Track" to begin.</div>';
+                return;
+            }
+            S.catalog.tracks.forEach(track => {
+                const row = document.createElement('div');
+                row.className = 'rc-track-row';
+                row.innerHTML =
+                    `<input type="date" class="rc-input rc-track-date" data-tid="${track.id}" value="${track.releaseDate || ''}">` +
+                    `<input type="number" class="rc-input rc-track-streams" data-tid="${track.id}" value="${track.streams || ''}" placeholder="Streams">` +
+                    `<button class="rc-remove-track" data-tid="${track.id}" title="Remove">&times;</button>`;
+                list.appendChild(row);
+            });
+            list.querySelectorAll('.rc-track-date').forEach(inp => {
+                inp.addEventListener('change', e => {
+                    const t = S.catalog.tracks.find(t => t.id === Number(e.target.dataset.tid));
+                    if (t) { t.releaseDate = e.target.value; render(); }
+                });
+            });
+            list.querySelectorAll('.rc-track-streams').forEach(inp => {
+                inp.addEventListener('input', e => {
+                    const t = S.catalog.tracks.find(t => t.id === Number(e.target.dataset.tid));
+                    if (t) { t.streams = e.target.value; render(); }
+                });
+            });
+            list.querySelectorAll('.rc-remove-track').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    S.catalog.tracks = S.catalog.tracks.filter(t => t.id !== Number(e.target.dataset.tid));
+                    render();
+                });
+            });
+        }
+
+        function renderResults(a, p, k, ltv, s) {
+            const name = S.mode === 'single' ? (S.single.name || 'Untitled Track') : (S.catalog.name || 'Untitled Artist');
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+            set('rc-res-name', name);
+            set('rc-res-genre', p.label);
+
+            const cb = document.getElementById('rc-res-catalog-badge');
+            if (cb) { cb.style.display = S.mode === 'catalog' ? '' : 'none'; cb.textContent = `Avg of ${S.catalog.tracks.length} tracks`; }
+
+            const slEl = document.getElementById('rc-res-streams-label');
+            if (slEl) slEl.textContent = S.mode === 'single' ? 'Projected Year 1 Streams' : 'Avg. Projected Y1 Streams';
+
+            set('rc-res-streams',     fmtNumber(a.projStreamsY1));
+            set('rc-res-revenue',     fmtCurrency(a.estRevenueY1));
+            set('rc-res-advance',     fmtCurrency(a.suggestedAdvance));
+            set('rc-res-margin',      `Margin: ${(S.config.advanceMargin * 100).toFixed(0)}%`);
+            set('rc-res-recoup',      a.recoupMonths > 60 ? '> 5 Years' : `${a.recoupMonths.toFixed(1)} Months`);
+            set('rc-res-recoup-type', S.config.recoupmentType === 'joint' ? '(Joint / Off-Top)' : '(Artist Share Only)');
+            set('rc-res-5y',          fmtCurrency(a.label5yProfit));
+            set('rc-res-ltv-label',   `Based on ${parseFloat(ltv).toFixed(1)}x LTV`);
+            set('rc-bd-advance',      fmtCurrency(a.suggestedAdvance));
+            set('rc-bd-costs',        fmtCurrency(a.costs));
+            set('rc-bd-total',        fmtCurrency(a.totalRecoupable));
+        }
+
+        // ── 5. INIT ──
+        function populateGenreSelects() {
+            const html = Object.entries(GENRE_PARAMS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+            ['rc-genre', 'rc-cat-genre'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = html; });
+        }
+
+        function bindEvents() {
+            // Simulation date
+            const sdEl = document.getElementById('rc-sim-date');
+            if (sdEl) { sdEl.value = S.simulationDate; sdEl.addEventListener('change', e => { S.simulationDate = e.target.value; render(); }); }
+
+            // Tab switching
+            document.querySelectorAll('.rc-tab').forEach(b => b.addEventListener('click', () => { S.activeTab = b.dataset.rctab; render(); }));
+
+            // Mode toggle
+            document.querySelectorAll('.rc-mode-btn').forEach(b => b.addEventListener('click', () => { S.mode = b.dataset.rcmode; render(); }));
+
+            // Reset
+            const resetBtn = document.getElementById('rc-reset-btn');
+            if (resetBtn) resetBtn.addEventListener('click', () => {
+                if (S.mode === 'single') {
+                    S.single = { name: '', genre: 'pop', releaseDate: '', currentStreams: '', customK: null, customLtvMult: null, costs: 0 };
+                    ['rc-track-name','rc-release-date','rc-streams','rc-costs'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+                    const g = document.getElementById('rc-genre'); if (g) g.value = 'pop';
+                } else {
+                    S.catalog = { name: '', genre: 'pop', customK: null, customLtvMult: null, costs: 0, tracks: [] };
+                    ['rc-artist-name','rc-costs'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+                    const g = document.getElementById('rc-cat-genre'); if (g) g.value = 'pop';
+                }
+                render();
+            });
+
+            // Single track fields
+            const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('input', fn); };
+            const bindChange = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('change', fn); };
+
+            bind('rc-track-name', e => { S.single.name = e.target.value; render(); });
+            bindChange('rc-release-date', e => { S.single.releaseDate = e.target.value; render(); });
+            bind('rc-streams', e => { S.single.currentStreams = e.target.value; render(); });
+            bindChange('rc-genre', e => { S.single.genre = e.target.value; S.single.customK = null; S.single.customLtvMult = null; render(); });
+
+            // Catalog fields
+            bind('rc-artist-name', e => { S.catalog.name = e.target.value; render(); });
+            bindChange('rc-cat-genre', e => { S.catalog.genre = e.target.value; S.catalog.customK = null; S.catalog.customLtvMult = null; render(); });
+
+            // Add track
+            const atBtn = document.getElementById('rc-add-track-btn');
+            if (atBtn) atBtn.addEventListener('click', () => { S.catalog.tracks.push({ id: Date.now(), releaseDate: '', streams: '' }); render(); });
+
+            // k slider
+            const kSlider = document.getElementById('rc-k-slider');
+            if (kSlider) kSlider.addEventListener('input', e => {
+                const v = parseFloat(e.target.value);
+                if (S.mode === 'single') S.single.customK = v; else S.catalog.customK = v;
+                render();
+            });
+
+            // LTV slider
+            const ltvSlider = document.getElementById('rc-ltv-slider');
+            if (ltvSlider) ltvSlider.addEventListener('input', e => {
+                const v = parseFloat(e.target.value);
+                if (S.mode === 'single') S.single.customLtvMult = v; else S.catalog.customLtvMult = v;
+                render();
+            });
+
+            // Costs
+            bind('rc-costs', e => {
+                const v = parseFloat(e.target.value) || 0;
+                if (S.mode === 'single') S.single.costs = v; else S.catalog.costs = v;
+                render();
+            });
+
+            // Settings inputs
+            [['rc-spotify-rate','spotifyRate'],['rc-dsp-mult','dspMultiplier'],['rc-dist-fee','distributionFee'],
+             ['rc-label-share','labelShare'],['rc-adv-margin','advanceMargin']].forEach(([id, key]) => {
+                bind(id, e => { S.config[key] = parseFloat(e.target.value) || 0; render(); });
+            });
+
+            // Recoupment radio
+            document.querySelectorAll('input[name="rc-recoup-type"]').forEach(r => {
+                r.addEventListener('change', e => {
+                    S.config.recoupmentType = e.target.value;
+                    document.querySelectorAll('.rc-recoup-option').forEach(opt => {
+                        opt.classList.toggle('rc-recoup-selected', opt.querySelector('input').value === e.target.value);
+                    });
+                    render();
+                });
+            });
+
+            // Export CSV
+            const expBtn = document.getElementById('rc-export-csv');
+            if (expBtn) expBtn.addEventListener('click', exportCSV);
+        }
+
+        function exportCSV() {
+            const s = src();
+            const { k, ltv, p } = getKLtv();
+            let proj = S.mode === 'single'
+                ? projectSingleTrackYear1(S.single.releaseDate, S.single.currentStreams, S.single.genre, S.simulationDate, S.single.customK)
+                : analyzeCatalogAverage(S.catalog, S.simulationDate);
+            if (!proj) return;
+            const a = generateDealOffer(proj, S.config, s.genre, s.costs || 0, s.customLtvMult);
+            const name = S.mode === 'single' ? (S.single.name || 'Untitled') : (S.catalog.name || 'Untitled');
+            const recoupStr = S.config.recoupmentType === 'joint' ? 'Joint/Off-Top' : 'Artist Share Only';
+            let csv = 'Name,Mode,Genre,Tail Strength (k),LTV Multiplier,Costs,Proj Y1 Streams,Est Revenue Y1,Suggested Advance,Total Recoupable,Recoupment Mode,Recoup Months,Label 5Y Profit\n';
+            csv += [`"${name}"`, S.mode === 'single' ? 'Single Track' : 'Catalog Avg', `"${p.label}"`, parseFloat(k).toFixed(2), parseFloat(ltv).toFixed(1),
+                    a.costs.toFixed(2), Math.round(a.projStreamsY1), a.estRevenueY1.toFixed(2), a.suggestedAdvance.toFixed(2),
+                    a.totalRecoupable.toFixed(2), recoupStr, a.recoupMonths.toFixed(1), a.label5yProfit.toFixed(2)].join(',') + '\n';
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url; link.download = `deal_projection_${S.mode}_${S.simulationDate}.csv`; link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function init() {
+            if (!document.getElementById('view-revenue')) return;
+            populateGenreSelects();
+            bindEvents();
+            render();
+        }
+
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+    })();
+    </script>

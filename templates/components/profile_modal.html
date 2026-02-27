@@ -1,0 +1,775 @@
+    <!-- Profile Modal -->
+    <div id="profile-modal" class="modal-overlay" onclick="if(event.target === this) closeModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div id="modal-image-container"></div>
+                <div class="modal-title-section">
+                    <h2 class="modal-title" id="modal-title"></h2>
+                    <div class="modal-subtitle" id="modal-subtitle"></div>
+                    <div class="modal-header-genres" id="modal-header-genres"></div>
+                </div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Profile Data -->
+    <script>
+        const artistProfiles = {{ artist_profiles | tojson | safe }};
+        const trackProfiles = {{ track_profiles | tojson | safe }};
+        const albumProfiles = {{ album_profiles | tojson | safe }};
+        const playlistUrls = {{ playlist_urls | tojson | safe }};
+
+        function getPlaylistUrl(playlistName) {
+            // Try exact match first
+            if (playlistUrls[playlistName]) return playlistUrls[playlistName];
+            // Try to find partial match
+            for (const [name, url] of Object.entries(playlistUrls)) {
+                if (playlistName.includes(name) || name.includes(playlistName)) return url;
+            }
+            return null;
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function openArtistModal(artistKey) {
+            const artist = artistProfiles[artistKey];
+            if (!artist) return;
+
+            const modal = document.getElementById('profile-modal');
+            const imageContainer = document.getElementById('modal-image-container');
+            const title = document.getElementById('modal-title');
+            const subtitle = document.getElementById('modal-subtitle');
+            const headerGenres = document.getElementById('modal-header-genres');
+            const body = document.getElementById('modal-body');
+
+            // Set header (circular artist image — no play overlay)
+            if (artist.image) {
+                imageContainer.innerHTML = `<img src="${artist.image}" class="modal-image" alt="">`;
+            } else {
+                imageContainer.innerHTML = `<div class="modal-image-placeholder">♪</div>`;
+            }
+            title.textContent = artist.name;
+
+            // Followers + Spotify link in subtitle
+            const followersText = artist.followers > 0 ? `${formatNumber(artist.followers)} followers` : '';
+            const spotifyLink = artist.url ? `<a href="${artist.url}" target="_blank">Open in Spotify ↗</a>` : '';
+            subtitle.innerHTML = [followersText, spotifyLink].filter(Boolean).join(' · ');
+
+            // Genre tags in header
+            if (artist.genres && artist.genres.length > 0) {
+                headerGenres.innerHTML = artist.genres
+                    .map(g => `<span class="modal-header-genre-tag">${g}</span>`)
+                    .join('');
+            } else {
+                headerGenres.innerHTML = '';
+            }
+
+            // Build body
+            let html = '';
+
+            // Compute top track by composite score (popularity × 0.4 + position score × 0.4 + charts × 0.2)
+            let topTrack = null;
+            if (artist.tracks && artist.tracks.length > 0) {
+                const trackStats = {};
+                artist.tracks.forEach(t => {
+                    if (!trackStats[t.track_name]) {
+                        trackStats[t.track_name] = { name: t.track_name, url: t.spotify_url, popularity: 0, positions: [], playlists: new Set() };
+                    }
+                    const ts = trackStats[t.track_name];
+                    if ((t.popularity || 0) > ts.popularity) ts.popularity = t.popularity || 0;
+                    if (t.position) ts.positions.push(t.position);
+                    if (t.playlist) ts.playlists.add(t.playlist);
+                });
+                let bestScore = -1;
+                Object.values(trackStats).forEach(ts => {
+                    const avgPos = ts.positions.length > 0 ? ts.positions.reduce((a, b) => a + b, 0) / ts.positions.length : 200;
+                    const chartsCount = ts.playlists.size;
+                    const score = ts.popularity * 0.4 + (200 - avgPos) * 0.4 + chartsCount * 20 * 0.2;
+                    if (score > bestScore) { bestScore = score; topTrack = { ...ts, avgPos, chartsCount }; }
+                });
+            }
+
+            // Stats grid with interactive dropdowns
+            const chartsDropdownList = artist.playlist_names && artist.playlist_names.length > 0
+                ? artist.playlist_names.map(pl => {
+                    const plUrl = getPlaylistUrl(pl);
+                    return plUrl ? `<li><a href="${plUrl}" target="_blank">${pl}</a></li>` : `<li>${pl}</li>`;
+                }).join('')
+                : '<li>No charts</li>';
+
+            // Appearances dropdown: grouped by track name with chart position pills
+            const appearsDropdownList = (() => {
+                if (!artist.tracks || artist.tracks.length === 0) return '<li>No tracks</li>';
+                const trackMap = {};
+                artist.tracks.forEach(t => {
+                    if (!trackMap[t.track_name]) {
+                        trackMap[t.track_name] = { url: t.spotify_url, positions: [] };
+                    }
+                    if (t.playlist && t.position) {
+                        trackMap[t.track_name].positions.push({ playlist: t.playlist, position: t.position });
+                    }
+                });
+                return Object.entries(trackMap).map(([name, data]) => {
+                    const link = data.url ? `<a href="${data.url}" target="_blank">${name}</a>` : name;
+                    const pills = data.positions.map(p => {
+                        return `<span class="chart-position-pill">#${p.position} ${p.playlist}</span>`;
+                    }).join('');
+                    const pillsHtml = pills ? `<div class="track-chart-positions">${pills}</div>` : '';
+                    return `<li>${link}${pillsHtml}</li>`;
+                }).join('');
+            })();
+
+            const topTrackHtml = topTrack
+                ? `<div class="modal-stat" style="cursor: default; min-width: 0;">
+                    <div class="modal-stat-value" style="font-size: 0.95em;" title="${topTrack.name.replace(/"/g, '&quot;')}">
+                        <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 100%;">
+                            ${topTrack.url ? `<a href="${topTrack.url}" target="_blank" style="color: inherit; text-decoration: none;">${topTrack.name}</a>` : topTrack.name}
+                        </span>
+                    </div>
+                    <div class="modal-stat-label">Top Track</div>
+                </div>`
+                : '';
+
+            html += `<div class="modal-stats-grid">
+                <div class="modal-stat">
+                    <div class="modal-stat-value">${artist.chart_count}</div>
+                    <div class="modal-stat-label">Charts</div>
+                    <div class="modal-stat-dropdown">
+                        <ul class="modal-stat-dropdown-list">${chartsDropdownList}</ul>
+                    </div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value">${artist.track_appearances}</div>
+                    <div class="modal-stat-label">Appearances</div>
+                    <div class="modal-stat-dropdown" style="min-width: 240px;">
+                        <ul class="modal-stat-dropdown-list">${appearsDropdownList}</ul>
+                    </div>
+                </div>
+                ${topTrackHtml}
+            </div>`;
+
+            // Charting tracks with sort and filter
+            if (artist.tracks && artist.tracks.length > 0) {
+                html += `<div class="modal-section artist-modal-tracks" id="artist-charting-tracks-section">
+                    <div class="modal-section-title">Charting Tracks (${artist.tracks.length})</div>
+                    <div id="artist-charting-filter-bar" class="artist-charting-filter-bar">
+                        <div class="filter-group">
+                            <label class="filter-label">Track</label>
+                            <input type="text" id="artist-filter-track" class="filter-input" placeholder="Search tracks..." />
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Album</label>
+                            <select id="artist-filter-album" class="filter-select">
+                                <option value="">All Albums</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Chart</label>
+                            <select id="artist-filter-chart" class="filter-select">
+                                <option value="">All Charts</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Popularity min</label>
+                            <select id="artist-filter-popularity" class="filter-select">
+                                <option value="">All</option>
+                                <option value="25">25+</option>
+                                <option value="50">50+</option>
+                                <option value="75">75+</option>
+                                <option value="90">90+</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <button id="artist-filter-reset" class="reset-btn">Reset</button>
+                        </div>
+                        <div class="filter-results">
+                            <span id="artist-filter-count">${artist.tracks.length}</span> of ${artist.tracks.length} tracks
+                        </div>
+                    </div>
+                    <div class="artist-track-headers" id="artist-track-headers">
+                        <span class="col-img"></span>
+                        <span class="col-title sortable" data-sort-key="track" data-sort-type="string">Track<span class="sort-indicator"></span></span>
+                        <span class="col-popularity sortable" data-sort-key="popularity" data-sort-type="number">Popularity<span class="sort-indicator"></span></span>
+                    </div>
+                    <ul class="modal-track-list" id="artist-charting-track-list"></ul>
+                </div>`;
+            }
+
+            body.innerHTML = html;
+            if (artist.tracks && artist.tracks.length > 0) {
+                setupArtistChartingTracks(artist);
+            }
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function renderArtistChartingTrackRow(t) {
+            const pop = Number(t.popularity) || 0;
+            const popBar = pop > 0
+                ? `<div class="album-track-pop"><div class="pop-container"><span class="pop-value">${pop}</span><span class="pop-bar-bg"><span class="pop-bar" style="width: ${Math.min(100, pop)}%;"></span></span></div></div>`
+                : '<div class="album-track-pop"></div>';
+            const chartLabel = t.playlist || '';
+            const plUrl = getPlaylistUrl(t.playlist);
+            const chartBadge = plUrl
+                ? `<a href="${plUrl}" target="_blank" class="modal-chart-badge">#${t.position} ${chartLabel}</a>`
+                : `<span class="modal-chart-badge">#${t.position} ${chartLabel}</span>`;
+            const imgHtml = t.album_image
+                ? `<div class="modal-track-img-wrapper">
+                    <img src="${t.album_image}" alt="">
+                    ${t.preview_url ? `<a href="${t.preview_url}" target="_blank" class="track-thumb-play" title="Play preview"></a>` : ''}
+                  </div>`
+                : '<div style="width:38px;flex-shrink:0;margin-right:10px;"></div>';
+            const trackName = (t.track_name || '').replace(/"/g, '&quot;');
+            const album = (t.album || '').replace(/"/g, '&quot;');
+            const chartVal = (t.playlist || '').replace(/"/g, '&quot;');
+            return `<li class="modal-track-item charting" data-track-name="${trackName}" data-album="${album}" data-chart="${chartVal}" data-popularity="${pop}">
+                ${imgHtml}
+                <div class="modal-track-info">
+                    <div class="modal-track-name-line">
+                        <div class="modal-track-name">
+                            ${t.spotify_url ? `<a href="${t.spotify_url}" target="_blank">${t.track_name}</a>` : t.track_name}
+                            ${t.explicit ? '<span class="explicit-badge">E</span>' : ''}
+                        </div>
+                    </div>
+                    ${t.album ? `<div class="modal-track-meta">${t.album_url ? `<a href="${t.album_url}" target="_blank" class="album-link">${t.album}</a>` : t.album}</div>` : ''}
+                    <div class="modal-chart-badges">${chartBadge}</div>
+                </div>
+                ${popBar}
+            </li>`;
+        }
+
+        let artistChartingState = { tracks: [], sort: { key: 'popularity', direction: 'desc', type: 'number' }, filters: { track: '', album: '', chart: '', popularity: '' } };
+
+        function setupArtistChartingTracks(artist) {
+            artistChartingState.tracks = artist.tracks || [];
+            artistChartingState.sort = { key: 'popularity', direction: 'desc', type: 'number' };
+            artistChartingState.filters = { track: '', album: '', chart: '', popularity: '' };
+
+            const albumSelect = document.getElementById('artist-filter-album');
+            const chartSelect = document.getElementById('artist-filter-chart');
+            if (albumSelect) {
+                const albums = [...new Set(artistChartingState.tracks.map(t => t.album).filter(Boolean))].sort();
+                albums.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a;
+                    opt.textContent = a;
+                    albumSelect.appendChild(opt);
+                });
+            }
+            if (chartSelect) {
+                const charts = [...new Set(artistChartingState.tracks.map(t => t.playlist).filter(Boolean))].sort();
+                charts.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c.replace('Top 50 - ', '').replace('Top Songs - ', '').replace('Top ', '');
+                    chartSelect.appendChild(opt);
+                });
+            }
+
+            function applyArtistChartingFiltersAndSort() {
+                const { tracks, sort, filters } = artistChartingState;
+                let visible = tracks.filter(t => {
+                    if (filters.track) {
+                        const q = filters.track.toLowerCase();
+                        if (!((t.track_name || '').toLowerCase().includes(q) || (t.album || '').toLowerCase().includes(q))) return false;
+                    }
+                    if (filters.album && (t.album || '') !== filters.album) return false;
+                    if (filters.chart && (t.playlist || '') !== filters.chart) return false;
+                    if (filters.popularity) {
+                        const minPop = parseInt(filters.popularity, 10);
+                        if (isNaN(minPop) || (Number(t.popularity) || 0) < minPop) return false;
+                    }
+                    return true;
+                });
+
+                visible.sort((a, b) => {
+                    let valA, valB;
+                    if (sort.key === 'popularity') {
+                        valA = Number(a.popularity) || 0;
+                        valB = Number(b.popularity) || 0;
+                    } else if (sort.key === 'track') {
+                        valA = (a.track_name || '').toLowerCase();
+                        valB = (b.track_name || '').toLowerCase();
+                    } else if (sort.key === 'album') {
+                        valA = (a.album || '').toLowerCase();
+                        valB = (b.album || '').toLowerCase();
+                    } else {
+                        valA = (a.playlist || '').toLowerCase();
+                        valB = (b.playlist || '').toLowerCase();
+                    }
+                    let cmp = 0;
+                    if (valA < valB) cmp = -1;
+                    else if (valA > valB) cmp = 1;
+                    return sort.direction === 'asc' ? cmp : -cmp;
+                });
+
+                const listEl = document.getElementById('artist-charting-track-list');
+                const countEl = document.getElementById('artist-filter-count');
+                const totalEl = document.querySelector('#artist-charting-tracks-section .modal-section-title');
+                if (listEl) {
+                    listEl.innerHTML = visible.length > 0
+                        ? visible.map(t => renderArtistChartingTrackRow(t)).join('')
+                        : '<li class="modal-track-item" style="padding:24px;text-align:center;color:var(--text-artist,#888);">No tracks match the current filters</li>';
+                }
+                if (countEl) countEl.textContent = visible.length;
+                if (totalEl) totalEl.textContent = `Charting Tracks (${visible.length}${visible.length !== artistChartingState.tracks.length ? ' of ' + artistChartingState.tracks.length : ''})`;
+            }
+
+            function updateArtistSortIndicators() {
+                const headers = document.getElementById('artist-track-headers');
+                if (!headers) return;
+                headers.querySelectorAll('.sortable').forEach(th => {
+                    const ind = th.querySelector('.sort-indicator');
+                    if (th.dataset.sortKey === artistChartingState.sort.key) {
+                        th.classList.add('sort-active');
+                        if (ind) ind.textContent = artistChartingState.sort.direction === 'asc' ? ' ▲' : ' ▼';
+                    } else {
+                        th.classList.remove('sort-active');
+                        if (ind) ind.textContent = '';
+                    }
+                });
+            }
+
+            applyArtistChartingFiltersAndSort();
+            updateArtistSortIndicators();
+
+            document.getElementById('artist-filter-track').addEventListener('input', function() {
+                artistChartingState.filters.track = this.value.trim();
+                applyArtistChartingFiltersAndSort();
+            });
+            document.getElementById('artist-filter-album').addEventListener('change', function() {
+                artistChartingState.filters.album = this.value;
+                applyArtistChartingFiltersAndSort();
+            });
+            document.getElementById('artist-filter-chart').addEventListener('change', function() {
+                artistChartingState.filters.chart = this.value;
+                applyArtistChartingFiltersAndSort();
+            });
+            document.getElementById('artist-filter-popularity').addEventListener('change', function() {
+                artistChartingState.filters.popularity = this.value;
+                applyArtistChartingFiltersAndSort();
+            });
+            document.getElementById('artist-filter-reset').addEventListener('click', function() {
+                artistChartingState.sort = { key: 'popularity', direction: 'desc', type: 'number' };
+                artistChartingState.filters = { track: '', album: '', chart: '', popularity: '' };
+                document.getElementById('artist-filter-track').value = '';
+                document.getElementById('artist-filter-album').value = '';
+                document.getElementById('artist-filter-chart').value = '';
+                document.getElementById('artist-filter-popularity').value = '';
+                applyArtistChartingFiltersAndSort();
+                updateArtistSortIndicators();
+            });
+
+            document.getElementById('artist-track-headers').querySelectorAll('.sortable').forEach(th => {
+                th.addEventListener('click', function() {
+                    const key = this.dataset.sortKey;
+                    const type = this.dataset.sortType || 'string';
+                    if (artistChartingState.sort.key === key) {
+                        artistChartingState.sort.direction = artistChartingState.sort.direction === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        artistChartingState.sort = { key, direction: 'asc', type };
+                    }
+                    applyArtistChartingFiltersAndSort();
+                    updateArtistSortIndicators();
+                });
+            });
+        }
+
+        function openTrackModal(trackKey) {
+            const track = trackProfiles[trackKey];
+            if (!track) return;
+
+            const modal = document.getElementById('profile-modal');
+            const imageContainer = document.getElementById('modal-image-container');
+            const title = document.getElementById('modal-title');
+            const subtitle = document.getElementById('modal-subtitle');
+            const headerGenres = document.getElementById('modal-header-genres');
+            const body = document.getElementById('modal-body');
+
+            // Set header — square album image with play overlay if preview available
+            if (track.album_image) {
+                if (track.preview_url) {
+                    imageContainer.innerHTML = `<div class="modal-image-wrapper">
+                        <img src="${track.album_image}" class="modal-image album" alt="">
+                        <a href="${track.preview_url}" target="_blank" class="play-overlay" title="Play preview">
+                            <span class="play-icon"></span>
+                        </a>
+                    </div>`;
+                } else {
+                    imageContainer.innerHTML = `<img src="${track.album_image}" class="modal-image album" alt="">`;
+                }
+            } else {
+                imageContainer.innerHTML = `<div class="modal-image-placeholder album">♪</div>`;
+            }
+            title.innerHTML = track.track_name + (track.explicit ? ' <span class="explicit-badge" style="font-size: 0.5em; vertical-align: middle;">E</span>' : '');
+            subtitle.innerHTML = `by ${track.artist}${track.spotify_url ? ` · <a href="${track.spotify_url}" target="_blank">Open in Spotify ↗</a>` : ''}`;
+
+            // Genre tags in header (like artist profiles)
+            if (track.genres && track.genres.length > 0) {
+                headerGenres.innerHTML = track.genres
+                    .map(g => `<span class="modal-header-genre-tag">${g}</span>`)
+                    .join('');
+            } else {
+                headerGenres.innerHTML = '';
+            }
+
+            // Build body
+            let html = '';
+
+            // Stats grid with interactive dropdowns (mirrors album profile)
+            const bestPosCharts = track.chart_positions
+                ? track.chart_positions.filter(cp => cp.position === track.best_position)
+                : [];
+            const bestPosDropdownList = bestPosCharts.length > 0
+                ? bestPosCharts.map(cp => {
+                    const plUrl = getPlaylistUrl(cp.playlist);
+                    return plUrl ? `<li><a href="${plUrl}" target="_blank">${cp.playlist}</a></li>` : `<li>${cp.playlist}</li>`;
+                }).join('')
+                : '<li>—</li>';
+
+            const chartsDropdownList = track.chart_positions && track.chart_positions.length > 0
+                ? track.chart_positions.map(cp => {
+                    const plUrl = getPlaylistUrl(cp.playlist);
+                    const label = `#${cp.position} ${cp.playlist}`;
+                    return plUrl ? `<li><a href="${plUrl}" target="_blank">${label}</a></li>` : `<li>${label}</li>`;
+                }).join('')
+                : '<li>No charts</li>';
+
+            const releaseYear = track.release_date ? track.release_date.split('-')[0] : 'N/A';
+
+            html += `<div class="modal-stats-grid">
+                <div class="modal-stat">
+                    <div class="modal-stat-value">#${track.best_position}</div>
+                    <div class="modal-stat-label">Best Position</div>
+                    <div class="modal-stat-dropdown">
+                        <ul class="modal-stat-dropdown-list">${bestPosDropdownList}</ul>
+                    </div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value">${track.charts_count}</div>
+                    <div class="modal-stat-label">Charts</div>
+                    <div class="modal-stat-dropdown">
+                        <ul class="modal-stat-dropdown-list">${chartsDropdownList}</ul>
+                    </div>
+                </div>
+                <div class="modal-stat" style="cursor: default;">
+                    <div class="modal-stat-value">${releaseYear}</div>
+                    <div class="modal-stat-label">Released</div>
+                </div>
+                <div class="modal-stat modal-stat-popularity" style="cursor: default;">
+                    <div class="modal-stat-value">${track.popularity}</div>
+                    <div class="modal-stat-pop-bar">
+                        <div class="modal-stat-pop-fill" style="width: ${track.popularity}%"></div>
+                    </div>
+                    <div class="modal-stat-label">Popularity</div>
+                </div>
+            </div>`;
+
+            // Album section with tracklist dropdown
+            if (track.album) {
+                const albumKey = track.album_id || '';
+                const albumData = albumKey && albumProfiles && albumProfiles[albumKey] ? albumProfiles[albumKey] : null;
+                const allTracks = albumData && albumData.all_tracks && albumData.all_tracks.length > 0 ? albumData.all_tracks : null;
+                const chevron = allTracks ? `<span class="track-album-chevron">▾</span>` : '';
+                const albumTitle = track.album_url
+                    ? `<a href="${track.album_url}" target="_blank" onclick="event.stopPropagation();" style="color: inherit; text-decoration: none;">${track.album}</a>`
+                    : track.album;
+                let tracklistHtml = '';
+                if (allTracks) {
+                    const trackItems = allTracks.map(t => {
+                        const dur = t.duration_ms ? `${Math.floor(t.duration_ms / 60000)}:${String(Math.floor((t.duration_ms % 60000) / 1000)).padStart(2, '0')}` : '';
+                        const name = t.spotify_url
+                            ? `<a href="${t.spotify_url}" target="_blank" style="color: inherit; text-decoration: none;">${t.track_name}</a>`
+                            : t.track_name;
+                        let chartBadgesHtml = '';
+                        if (t.is_charting && t.chart_positions && t.chart_positions.length > 0) {
+                            chartBadgesHtml = t.chart_positions.map(cp => {
+                                const plUrl = getPlaylistUrl(cp.playlist);
+                                const label = `#${cp.position} ${cp.playlist}`;
+                                return plUrl
+                                    ? `<a href="${plUrl}" target="_blank" class="modal-chart-badge">${label}</a>`
+                                    : `<span class="modal-chart-badge">${label}</span>`;
+                            }).join('');
+                        }
+                        return `<li class="track-album-track-item${t.is_charting ? ' is-charting' : ''}">
+                            <span class="track-album-track-num">${t.track_number}</span>
+                            <span class="track-album-track-name">${name}${t.explicit ? ' <span class="explicit-badge" style="font-size:0.55em;vertical-align:middle;">E</span>' : ''}${chartBadgesHtml ? `<span class="track-album-track-badges">${chartBadgesHtml}</span>` : ''}</span>
+                            ${dur ? `<span class="track-album-track-dur">${dur}</span>` : ''}
+                        </li>`;
+                    }).join('');
+                    tracklistHtml = `<ul class="track-album-tracklist">${trackItems}</ul>`;
+                }
+                html += `<div class="modal-section">
+                    <div class="modal-section-title">Album</div>
+                    <div class="track-album-dropdown"${allTracks ? ' onclick="this.classList.toggle(\'open\')"' : ''}>
+                        <div class="track-album-header">${albumTitle}${chevron}</div>
+                        ${tracklistHtml}
+                    </div>
+                </div>`;
+            }
+
+            // Chart positions — badge cloud
+            if (track.chart_positions && track.chart_positions.length > 0) {
+                const positionBadges = track.chart_positions.map(pos => {
+                    const plUrl = getPlaylistUrl(pos.playlist);
+                    return plUrl
+                        ? `<a href="${plUrl}" target="_blank" class="modal-chart-badge">#${pos.position} ${pos.playlist}</a>`
+                        : `<span class="modal-chart-badge">#${pos.position} ${pos.playlist}</span>`;
+                }).join('');
+                html += `<div class="modal-section">
+                    <div class="modal-section-title">Chart Positions</div>
+                    <div class="track-chart-badge-cloud">${positionBadges}</div>
+                </div>`;
+            }
+
+            // Sticky footer with release date (mirrors album modal footer)
+            if (track.release_date) {
+                html += `<div class="track-modal-footer">
+                    <div class="track-modal-footer-content">
+                        ${track.explicit ? '<span>Explicit</span> · ' : ''}${track.release_date}
+                    </div>
+                </div>`;
+            }
+
+            body.innerHTML = html;
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function openAlbumModal(albumKey) {
+            const album = albumProfiles[albumKey];
+            if (!album) return;
+
+            const modal = document.getElementById('profile-modal');
+            const imageContainer = document.getElementById('modal-image-container');
+            const title = document.getElementById('modal-title');
+            const subtitle = document.getElementById('modal-subtitle');
+            document.getElementById('modal-header-genres').innerHTML = '';
+            const body = document.getElementById('modal-body');
+
+            // Set header - check for preview URL from charting tracks or all tracks
+            let previewUrl = null;
+            if (album.charting_tracks && album.charting_tracks.length > 0) {
+                const trackWithPreview = album.charting_tracks.find(t => t.preview_url);
+                if (trackWithPreview) previewUrl = trackWithPreview.preview_url;
+            }
+            if (!previewUrl && album.all_tracks && album.all_tracks.length > 0) {
+                const trackWithPreview = album.all_tracks.find(t => t.preview_url);
+                if (trackWithPreview) previewUrl = trackWithPreview.preview_url;
+            }
+
+            if (album.album_image) {
+                if (previewUrl) {
+                    imageContainer.innerHTML = `<div class="modal-image-wrapper">
+                        <img src="${album.album_image}" class="modal-image album" alt="">
+                        <a href="${previewUrl}" target="_blank" class="play-overlay" title="Play preview">
+                            <span class="play-icon"></span>
+                        </a>
+                    </div>`;
+                } else {
+                    imageContainer.innerHTML = `<img src="${album.album_image}" class="modal-image album" alt="">`;
+                }
+            } else {
+                imageContainer.innerHTML = `<div class="modal-image-placeholder album">♪</div>`;
+            }
+            title.textContent = album.album;
+            subtitle.innerHTML = `by ${album.artist}${album.album_url ? ` · <a href="${album.album_url}" target="_blank">Open in Spotify ↗</a>` : ''}`;
+
+            // Build body
+            let html = '';
+
+            // Stats grid with dropdowns
+            // Build charting tracks dropdown list (deduplicated)
+            const chartingTracksList = album.charting_tracks && album.charting_tracks.length > 0
+                ? (() => {
+                    const seen = new Set();
+                    return album.charting_tracks
+                        .filter(t => {
+                            const key = t.track_id || t.track_name;
+                            if (seen.has(key)) return false;
+                            seen.add(key);
+                            return true;
+                        })
+                        .map(t =>
+                            t.spotify_url
+                                ? `<li><a href="${t.spotify_url}" target="_blank">${t.track_name}</a></li>`
+                                : `<li>${t.track_name}</li>`
+                        ).join('');
+                })()
+                : '<li>No charting tracks</li>';
+
+            // Build charts reached dropdown list
+            const chartsReachedList = album.playlists_reached && album.playlists_reached.length > 0
+                ? album.playlists_reached.map(pl => {
+                    const plUrl = getPlaylistUrl(pl);
+                    // Keep full playlist name to prevent cutoff
+                    const displayName = pl;
+                    return plUrl
+                        ? `<li><a href="${plUrl}" target="_blank">${displayName}</a></li>`
+                        : `<li>${displayName}</li>`;
+                }).join('')
+                : '<li>No charts</li>';
+
+            // Build mini bar chart for popularity distribution
+            const tracksForChart = album.all_tracks && album.all_tracks.length > 0
+                ? album.all_tracks
+                : (album.charting_tracks || []);
+            const popularityBars = tracksForChart.length > 0
+                ? tracksForChart.map(t => {
+                    const pop = t.popularity != null ? Number(t.popularity) : 0;
+                    const height = Math.max(4, pop * 0.6); // Scale to max 60px
+                    return `<div class="mini-bar" style="height: ${height}px;" data-popularity="${pop}" data-track="${t.track_name.replace(/"/g, '&quot;')}"></div>`;
+                }).join('')
+                : '';
+
+            html += `<div class="modal-stats-grid">
+                <div class="modal-stat">
+                    <div class="modal-stat-value">${album.charting_track_count}</div>
+                    <div class="modal-stat-label">Charting Tracks</div>
+                    <div class="modal-stat-dropdown">
+                        <ul class="modal-stat-dropdown-list">${chartingTracksList}</ul>
+                    </div>
+                </div>
+                <div class="modal-stat" style="cursor: default;">
+                    <div class="modal-stat-value">${album.total_tracks || '?'}</div>
+                    <div class="modal-stat-label">Total Tracks</div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value">${album.playlists_reached.length}</div>
+                    <div class="modal-stat-label">Charts Reached</div>
+                    <div class="modal-stat-dropdown">
+                        <ul class="modal-stat-dropdown-list">${chartsReachedList}</ul>
+                    </div>
+                </div>
+                <div class="modal-stat">
+                    <div class="modal-stat-value">${Math.round(album.avg_popularity)}</div>
+                    <div class="modal-stat-label">Avg Popularity</div>
+                    <div class="modal-stat-dropdown" style="min-width: 220px;">
+                        <div class="mini-bar-label">Track Popularity Distribution</div>
+                        <div class="mini-bar-chart">${popularityBars}</div>
+                    </div>
+                </div>
+            </div>`;
+
+            // All album tracks (with charted ones highlighted)
+            if (album.all_tracks && album.all_tracks.length > 0) {
+                html += `<div class="modal-section album-modal-tracks">
+                    <div class="modal-section-title">All Tracks (${album.all_tracks.length})</div>
+                    <div class="album-track-headers">
+                        <span class="col-num">#</span>
+                        <span class="col-title">TITLE</span>
+                        <span class="col-duration" style="font-size: 1.2em;">◷</span>
+                        <span class="col-popularity">POPULARITY</span>
+                    </div>
+                    <ul class="modal-track-list">`;
+                album.all_tracks.forEach(t => {
+                    const isCharting = t.is_charting;
+                    const chartBadgesHtml = isCharting && t.chart_positions && t.chart_positions.length > 0
+                        ? t.chart_positions.map(cp => {
+                            const plUrl = getPlaylistUrl(cp.playlist);
+                            const label = `#${cp.position} ${cp.playlist}`;
+                            return plUrl
+                                ? `<a href="${plUrl}" target="_blank" class="modal-chart-badge">${label}</a>`
+                                : `<span class="modal-chart-badge">${label}</span>`;
+                        }).join('')
+                        : '';
+                    const duration = t.duration_ms ? `${Math.floor(t.duration_ms / 60000)}:${String(Math.floor((t.duration_ms % 60000) / 1000)).padStart(2, '0')}` : '';
+                    const pop = t.popularity != null ? Number(t.popularity) : 0;
+                    const popBar = (pop > 0) ? `<div class="pop-container"><span class="pop-value">${pop}</span><span class="pop-bar-bg"><span class="pop-bar" style="width: ${Math.min(100, pop)}%;"></span></span></div>` : '';
+                    const hasPreview = isCharting && t.preview_url;
+                    const playBtn = hasPreview ? `<a href="${t.preview_url}" target="_blank" class="track-play-btn" title="Play preview"></a>` : '';
+
+                    html += `<li class="modal-track-item ${isCharting ? 'charting' : ''}">
+                        <div class="track-number-wrapper">${hasPreview ? playBtn : ''}<span class="modal-track-number${hasPreview ? ' has-preview' : ''}">${t.track_number}</span></div>
+                        <div class="modal-track-info">
+                            <div class="modal-track-name-line">
+                                <div class="modal-track-name">
+                                    ${t.spotify_url ? `<a href="${t.spotify_url}" target="_blank">${t.track_name}</a>` : t.track_name}
+                                    ${t.explicit ? '<span class="explicit-badge">E</span>' : ''}
+                                </div>
+                            </div>
+                            ${chartBadgesHtml ? `<div class="modal-chart-badges">${chartBadgesHtml}</div>` : ''}
+                        </div>
+                        ${duration ? `<span class="modal-track-duration">${duration}</span>` : '<span class="modal-track-duration"></span>'}
+                        ${popBar ? `<div class="album-track-pop">${popBar}</div>` : '<div class="album-track-pop"></div>'}
+                    </li>`;
+                });
+                html += `</ul></div>`;
+            } else if (album.charting_tracks && album.charting_tracks.length > 0) {
+                // Fallback: only show charting tracks if all_tracks not available
+                html += `<div class="modal-section album-modal-tracks">
+                    <div class="modal-section-title">Charting Tracks</div>
+                    <div class="album-track-headers">
+                        <span class="col-num">#</span>
+                        <span class="col-title">TITLE</span>
+                        <span class="col-duration" style="font-size: 1.2em;">◷</span>
+                        <span class="col-popularity">POPULARITY</span>
+                    </div>
+                    <ul class="modal-track-list">`;
+                album.charting_tracks.forEach(t => {
+                    const pop = t.popularity != null ? Number(t.popularity) : 0;
+                    const popBar = (pop > 0) ? `<div class="pop-container"><span class="pop-value">${pop}</span><span class="pop-bar-bg"><span class="pop-bar" style="width: ${Math.min(100, pop)}%;"></span></span></div>` : '';
+                    const durationFallback = t.duration ? t.duration : (t.duration_ms ? `${Math.floor(t.duration_ms / 60000)}:${String(Math.floor((t.duration_ms % 60000) / 1000)).padStart(2, '0')}` : '');
+                    const hasPreview = t.preview_url;
+                    const playBtn = hasPreview ? `<a href="${t.preview_url}" target="_blank" class="track-play-btn" title="Play preview"></a>` : '';
+                    html += `<li class="modal-track-item charting">
+                        <div class="track-number-wrapper">${hasPreview ? playBtn : ''}<span class="modal-track-position${hasPreview ? ' has-preview' : ''}">#${t.position}</span></div>
+                        <div class="modal-track-info">
+                            <div class="modal-track-name-line">
+                                <div class="modal-track-name">
+                                    ${t.spotify_url ? `<a href="${t.spotify_url}" target="_blank">${t.track_name}</a>` : t.track_name}
+                                </div>
+                            </div>
+                        </div>
+                        ${durationFallback ? `<span class="modal-track-duration">${durationFallback}</span>` : '<span class="modal-track-duration"></span>'}
+                        ${popBar ? `<div class="album-track-pop">${popBar}</div>` : '<div class="album-track-pop"></div>'}
+                        <span class="modal-track-playlist">${t.playlist.replace('Top ', '').replace(' - ', ' ')}</span>
+                    </li>`;
+                });
+                html += `</ul></div>`;
+            }
+
+            // Album details as sticky footer
+            html += `<div class="album-modal-footer">
+                <div class="album-modal-footer-content">
+                    ${album.album_type ? `<span style="text-transform: capitalize;">${album.album_type}</span> · ` : ''}
+                    ${album.release_date || 'Unknown release date'}
+                </div>
+            </div>`;
+
+            body.innerHTML = html;
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('profile-modal');
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Delegated click: open profile modal for .profile-link (artist/track/album)
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('.profile-link');
+            if (!link) return;
+            const type = link.getAttribute('data-type');
+            const id = link.getAttribute('data-id');
+            if (!type || !id) return;
+            if (e.ctrlKey || e.metaKey) return; // allow open in new tab
+            e.preventDefault();
+            if (type === 'artist') openArtistModal(id);
+            else if (type === 'track') openTrackModal(id);
+            else if (type === 'album') openAlbumModal(id);
+        });
+    </script>

@@ -51,6 +51,7 @@ logs/*
 *.html
 *.pdf
 !templates/*.html
+!templates/**/*.html
 # Allow GitHub Pages dashboard (exception must come after general rule)
 !docs/index.html
 

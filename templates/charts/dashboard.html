@@ -1,0 +1,897 @@
+        <!-- Charts View (existing dashboard) -->
+        <div id="view-charts" class="app-view active">
+        <div class="dashboard">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <h1><span class="spotify-green">Spotify</span> Charts Dashboard</h1>
+            <p class="subtitle">Cross-Playlist Analytics &amp; Insights</p>
+        </header>
+
+        <!-- Summary Cards (Dynamic - updates based on selected tab) -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="value" id="card-tracks">{{ analytics.summary.unique_tracks }}</div>
+                <div class="label" id="card-tracks-label">Unique Tracks</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" id="card-artists">{{ analytics.summary.unique_artists }}</div>
+                <div class="label">Unique Artists</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" id="card-popularity">{{ "%.1f"|format(analytics.popularity_stats.overall.avg) }}</div>
+                <div class="label">Average Popularity</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" id="card-genres">{{ analytics.genre_stats.total_unique_genres }}</div>
+                <div class="label">Unique Genres</div>
+            </div>
+            <div class="summary-card">
+                <div class="value" id="card-explicit">{{ analytics.explicit_stats.total_explicit }}</div>
+                <div class="label" id="card-explicit-label">Explicit Tracks</div>
+            </div>
+        </div>
+
+        <!-- Tabs Container -->
+        <div class="tabs-container">
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="showTab('all-tracks')">All Tracks</button>
+                {% for playlist_name in tracks_by_playlist.keys() %}
+                <button class="tab-button" onclick="showTab('{{ playlist_name|replace(' ', '-')|replace('/', '-') }}')">{{ playlist_name|replace('Top ', '')|replace(' - ', ' ') }}</button>
+                {% endfor %}
+            </div>
+
+            <!-- All Tracks Tab -->
+            <div id="all-tracks" class="tab-content active"
+                 data-tracks="{{ analytics.summary.unique_tracks }}"
+                 data-artists="{{ analytics.summary.unique_artists }}"
+                 data-popularity="{{ "%.1f"|format(analytics.popularity_stats.overall.avg) }}"
+                 data-genres="{{ analytics.genre_stats.total_unique_genres }}"
+                 data-explicit="{{ analytics.explicit_stats.total_explicit }}"
+                 data-tracks-label="Unique Tracks"
+                 data-explicit-label="Explicit Tracks">
+                <div class="tab-panel">
+                    <!-- Analytics Grid (Global) -->
+                    <div class="analytics-grid">
+                        <!-- Top Artists -->
+                        <div class="section">
+                            <h2 class="section-title">Top Artists (All Charts)</h2>
+                            <ul class="artist-list">
+                                {% for artist in analytics.top_artists[:20] %}
+                                <li>
+                                    <div class="artist-item">
+                                        <span class="artist-rank">{{ loop.index }}</span>
+                                        <span class="artist-name">
+                                            {% if artist.url %}
+                                            <a href="{{ artist.url }}" target="_blank" class="profile-link" data-type="artist" data-id="{{ artist.profile_key }}">{{ artist.name }}</a>
+                                            {% else %}
+                                            <span class="profile-link" data-type="artist" data-id="{{ artist.profile_key }}">{{ artist.name }}</span>
+                                            {% endif %}
+                                        </span>
+                                        <span class="artist-stats">
+                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ artist.count }} tracks</span>
+                                            <span>{{ artist.playlists }} charts</span>
+                                        </span>
+                                    </div>
+                                    <ul class="track-dropdown">
+                                        {% for t in artist.tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.playlist|replace('Top ', '')|replace(' - ', ' ') }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- Top Genres (Global) -->
+                        {% if analytics.genre_stats.top_genres %}
+                        <div class="section">
+                            <h2 class="section-title">Top Genres (All Charts)</h2>
+                            <ul class="artist-list">
+                                {% for genre in analytics.genre_stats.top_genres %}
+                                <li>
+                                    <div class="artist-item">
+                                        <span class="artist-rank">{{ loop.index }}</span>
+                                        <span class="artist-name">{{ genre.name }}</span>
+                                        <span class="artist-stats">
+                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ genre.count }} tracks</span>
+                                            <span>{{ genre.playlists }} charts</span>
+                                        </span>
+                                    </div>
+                                    <ul class="track-dropdown">
+                                        {% for t in genre.tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}{% if t.playlist %}, {{ t.playlist|replace(' - ', ' ') }}{% endif %}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <!-- Chart Overlap -->
+                        <div class="section">
+                            <h2 class="section-title">USA vs Global</h2>
+                            <div class="overlap-stats">
+                                <div class="overlap-stat dropdown-toggle" onclick="toggleDropdown(this)">
+                                    <div class="number">{{ analytics.chart_overlap.usa_global_comparison.usa_only }}</div>
+                                    <div class="label">USA Only</div>
+                                    <ul class="track-dropdown" style="text-align: left;">
+                                        {% for t in analytics.chart_overlap.usa_global_comparison.usa_only_tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="overlap-stat dropdown-toggle" onclick="toggleDropdown(this)">
+                                    <div class="number">{{ analytics.chart_overlap.usa_global_comparison.both }}</div>
+                                    <div class="label">Both Charts</div>
+                                    <ul class="track-dropdown" style="text-align: left;">
+                                        {% for t in analytics.chart_overlap.usa_global_comparison.both_tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="overlap-stat dropdown-toggle" onclick="toggleDropdown(this)">
+                                    <div class="number">{{ analytics.chart_overlap.usa_global_comparison.global_only }}</div>
+                                    <div class="label">Global Only</div>
+                                    <ul class="track-dropdown" style="text-align: left;">
+                                        {% for t in analytics.chart_overlap.usa_global_comparison.global_only_tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <h3 style="color: {{ theme.text_secondary }}; font-size: 1em; margin: 20px 0 15px;">Tracks on Multiple Charts</h3>
+                            {% for track in analytics.chart_overlap.multi_chart_tracks[:8] %}
+                            <div class="overlap-track">
+                                {% if track.album_image %}
+                                <img src="{{ track.album_image }}" alt="">
+                                {% endif %}
+                                <div class="overlap-track-info">
+                                    <div class="overlap-track-name">
+                                        {% if track.spotify_url %}
+                                        <a href="{{ track.spotify_url }}" target="_blank">{{ track.track_name }}</a>
+                                        {% else %}
+                                        {{ track.track_name }}
+                                        {% endif %}
+                                    </div>
+                                    <div class="overlap-track-artist">{{ track.artist }}</div>
+                                    <div class="overlap-charts">
+                                        {% for app in track.appearances %}
+                                        {% if playlist_urls.get(app.playlist) %}
+                                        <a href="{{ playlist_urls[app.playlist] }}" target="_blank" class="chart-tag">#{{ app.position }} {{ app.playlist|replace(' - ', ' ') }}</a>
+                                        {% else %}
+                                        <span class="chart-tag">#{{ app.position }} {{ app.playlist|replace(' - ', ' ') }}</span>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Popularity by Playlist -->
+                    <div class="section">
+                        <h2 class="section-title">Popularity by Playlist</h2>
+                        <div class="popularity-grid">
+                            {% for playlist, stats in analytics.popularity_stats.by_playlist.items() %}
+                            <div class="popularity-card">
+                                <div class="playlist-name">{{ playlist }}</div>
+                                <div class="avg-value">{{ "%.1f"|format(stats.avg) }}</div>
+                                <div class="range">Range: {{ stats.min }} - {{ stats.max }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Explicit Content -->
+                    <div class="section">
+                        <h2 class="section-title">Explicit Content by Playlist</h2>
+                        <div class="explicit-grid">
+                            {% for playlist, stats in analytics.explicit_stats.by_playlist.items() %}
+                            <div class="explicit-card">
+                                <div class="playlist-name">{{ playlist }}</div>
+                                <div class="explicit-bar-container">
+                                    <div class="explicit-bar" style="width: {{ stats.percentage }}%;"></div>
+                                </div>
+                                <div class="percentage">{{ "%.0f"|format(stats.percentage) }}% ({{ stats.explicit }}/{{ stats.total }})</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- All Tracks Table (title, filter bar, and table in same container) -->
+                    <div class="section">
+                        <div class="playlist-header">
+                            <h2 class="playlist-title">All Tracks</h2>
+                            <span class="playlist-meta">{{ all_tracks|length }} tracks</span>
+                        </div>
+                        <div id="all-tracks-filter-bar" class="filter-bar filter-bar-inline">
+                            <div class="filter-bar-row">
+                                <div class="filter-group">
+                                    <label class="filter-label">Search</label>
+                                    <input type="text" id="filter-search" class="filter-input"
+                                           placeholder="Track or artist name..." />
+                                </div>
+                                <div class="filter-group">
+                                    <label class="filter-label">Playlist</label>
+                                    <select id="filter-playlist" class="filter-select">
+                                        <option value="">All Playlists</option>
+                                        {% for playlist_name in tracks_by_playlist.keys() %}
+                                        <option value="{{ playlist_name }}">{{ playlist_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label class="filter-label">Genre</label>
+                                    <select id="filter-genre" class="filter-select">
+                                        <option value="">All Genres</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group filter-group-toggle">
+                                    <label class="filter-label">Explicit</label>
+                                    <div class="toggle-buttons">
+                                        <button class="toggle-btn active" data-value="" id="explicit-all">All</button>
+                                        <button class="toggle-btn" data-value="true" id="explicit-yes">Yes</button>
+                                        <button class="toggle-btn" data-value="false" id="explicit-no">No</button>
+                                    </div>
+                                </div>
+                                <div class="filter-group filter-group-reset">
+                                    <button id="filter-reset" class="reset-btn">Reset</button>
+                                </div>
+                            </div>
+                            <div class="filter-results">
+                                <span id="filter-count">{{ all_tracks|length }}</span> of {{ all_tracks|length }} tracks
+                            </div>
+                        </div>
+                        <table class="data-table" id="all-tracks-table">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" data-sort-key="position" data-sort-type="number">#<span class="sort-indicator"></span></th>
+                                    <th class="sortable" data-sort-key="track" data-sort-type="string">Track<span class="sort-indicator"></span></th>
+                                    <th class="sortable" data-sort-key="album" data-sort-type="string">Album<span class="sort-indicator"></span></th>
+                                    <th class="sortable" data-sort-key="duration-ms" data-sort-type="number">◷<span class="sort-indicator"></span></th>
+                                    <th class="sortable" data-sort-key="popularity" data-sort-type="number">Popularity<span class="sort-indicator"></span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for track in all_tracks %}
+                                {{ format_track_row_with_playlist(track)|safe }}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Individual Playlist Tabs -->
+            {% for playlist_name, tracks in tracks_by_playlist.items() %}
+            {% set pl_analytics = playlist_analytics[playlist_name] %}
+            <div id="{{ playlist_name|replace(' ', '-')|replace('/', '-') }}" class="tab-content"
+                 data-tracks="{{ pl_analytics.summary.track_count }}"
+                 data-artists="{{ pl_analytics.summary.unique_artists }}"
+                 data-popularity="{{ "%.1f"|format(pl_analytics.summary.avg_popularity) }}"
+                 data-genres="{{ pl_analytics.summary.unique_genres }}"
+                 data-explicit="{{ pl_analytics.summary.explicit_count }}"
+                 data-tracks-label="Tracks"
+                 data-explicit-label="Explicit Tracks">
+                <div class="tab-panel">
+                    <!-- Analytics Grid (Playlist-specific) -->
+                    <div class="analytics-grid">
+                        <!-- Top Artists for this playlist -->
+                        <div class="section">
+                            <h2 class="section-title">Top Artists</h2>
+                            <ul class="artist-list">
+                                {% for artist in pl_analytics.top_artists[:10] %}
+                                <li>
+                                    <div class="artist-item">
+                                        <span class="artist-rank">{{ loop.index }}</span>
+                                        <span class="artist-name">
+                                            {% if artist.url %}
+                                            <a href="{{ artist.url }}" target="_blank" class="profile-link" data-type="artist" data-id="{{ artist.profile_key }}">{{ artist.name }}</a>
+                                            {% else %}
+                                            <span class="profile-link" data-type="artist" data-id="{{ artist.profile_key }}">{{ artist.name }}</span>
+                                            {% endif %}
+                                        </span>
+                                        <span class="artist-stats">
+                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ artist.count }} tracks</span>
+                                        </span>
+                                    </div>
+                                    <ul class="track-dropdown">
+                                        {% for t in artist.tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- Top Genres for this playlist -->
+                        {% if pl_analytics.top_genres %}
+                        <div class="section">
+                            <h2 class="section-title">Top Genres</h2>
+                            <ul class="artist-list">
+                                {% for genre in pl_analytics.top_genres %}
+                                <li>
+                                    <div class="artist-item">
+                                        <span class="artist-rank">{{ loop.index }}</span>
+                                        <span class="artist-name">{{ genre.name }}</span>
+                                        <span class="artist-stats">
+                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ genre.count }} tracks</span>
+                                        </span>
+                                    </div>
+                                    <ul class="track-dropdown">
+                                        {% for t in genre.tracks %}
+                                        <li>
+                                            <span class="dropdown-track-name">
+                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
+                                            </span>
+                                            <span class="dropdown-track-meta"> — {{ t.artist }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <!-- Popularity Stats for this playlist -->
+                        <div class="section" style="display: flex; flex-direction: column;">
+                            <h2 class="section-title">Popularity Stats</h2>
+                            <div style="text-align: center;">
+                                <div style="font-size: 3em; font-weight: 700; color: {{ theme.primary }};">{{ "%.1f"|format(pl_analytics.summary.avg_popularity) }}</div>
+                                <div style="color: {{ theme.text_artist }};">Average Popularity</div>
+                                {% set range_span = pl_analytics.summary.max_popularity - pl_analytics.summary.min_popularity %}
+                                {% set avg_pct = ((pl_analytics.summary.avg_popularity - pl_analytics.summary.min_popularity) / range_span * 100) if range_span > 0 else 50 %}
+                                <div class="pop-range-bar">
+                                    <div class="pop-range-fill" style="left: 0; width: 100%;"></div>
+                                    <div class="pop-range-avg" style="left: {{ avg_pct }}%;"></div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.8em; color: {{ theme.text_artist }};">
+                                    <span>{{ pl_analytics.summary.min_popularity }}</span>
+                                    <span>Range: {{ pl_analytics.summary.min_popularity }} – {{ pl_analytics.summary.max_popularity }}</span>
+                                    <span>{{ pl_analytics.summary.max_popularity }}</span>
+                                </div>
+                            </div>
+                            <div class="histogram-wrapper" style="margin-top: auto;">
+                                <div class="histogram-y-label">Tracks</div>
+                                <div style="flex: 1;">
+                                    <div class="histogram">
+                                        {% for bucket in pl_analytics.popularity_histogram %}
+                                        <div class="histogram-col">
+                                            <div class="histogram-count">{{ bucket.count }}</div>
+                                            <div class="histogram-bar-wrap">
+                                                <div class="histogram-bar" style="height: {{ bucket.pct }}%;"></div>
+                                            </div>
+                                            <div class="histogram-label">{{ bucket.label }}</div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="histogram-x-label">Popularity Score</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tracks Table -->
+                    <div class="section">
+                        <div class="playlist-header">
+                            <h2 class="playlist-title">
+                                {% if playlist_urls and playlist_urls[playlist_name] %}
+                                <a href="{{ playlist_urls[playlist_name] }}" target="_blank" style="color: {{ theme.text_secondary }}; text-decoration: none;">{{ playlist_name }}</a>
+                                {% else %}
+                                {{ playlist_name }}
+                                {% endif %}
+                            </h2>
+                            <span class="playlist-meta">{{ tracks|length }} tracks</span>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Track</th>
+                                    <th>Album</th>
+                                    <th>◷</th>
+                                    <th>Popularity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for track in tracks %}
+                                {{ format_track_row(track)|safe }}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <script>
+            function toggleDropdown(badge) {
+                badge.classList.toggle('open');
+                var parent = badge.closest('li') || badge.closest('.overlap-stat');
+                var dropdown = parent.querySelector('.track-dropdown');
+                dropdown.classList.toggle('open');
+            }
+
+            function showTab(tabId) {
+                // Hide all tab contents
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+
+                // Remove active class from all buttons
+                document.querySelectorAll('.tab-button').forEach(button => {
+                    button.classList.remove('active');
+                });
+
+                // Show selected tab content
+                const selectedTab = document.getElementById(tabId);
+                selectedTab.classList.add('active');
+
+                // Add active class to clicked button
+                event.target.classList.add('active');
+
+                // Update summary cards based on selected tab's data attributes
+                document.getElementById('card-tracks').textContent = selectedTab.dataset.tracks;
+                document.getElementById('card-tracks-label').textContent = selectedTab.dataset.tracksLabel;
+                document.getElementById('card-artists').textContent = selectedTab.dataset.artists;
+                document.getElementById('card-popularity').textContent = selectedTab.dataset.popularity;
+                document.getElementById('card-genres').textContent = selectedTab.dataset.genres;
+                document.getElementById('card-explicit').textContent = selectedTab.dataset.explicit;
+                document.getElementById('card-explicit-label').textContent = selectedTab.dataset.explicitLabel;
+            }
+
+            // ===== All Tracks Filter & Sort =====
+            const allTracksState = {
+                sort: { key: 'position', direction: 'asc', type: 'number' },
+                filters: {
+                    search: '',
+                    playlist: '',
+                    genre: '',
+                    explicit: ''
+                }
+            };
+
+            function toCamelCase(str) {
+                return str.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+            }
+
+            function populateGenreDropdown(rows) {
+                const genreSet = new Set();
+                rows.forEach(row => {
+                    try {
+                        const genres = JSON.parse(row.dataset.genres || '[]');
+                        genres.forEach(g => { if (g) genreSet.add(g); });
+                    } catch (e) { /* skip malformed */ }
+                });
+
+                const sorted = Array.from(genreSet).sort();
+                const select = document.getElementById('filter-genre');
+                sorted.forEach(genre => {
+                    const opt = document.createElement('option');
+                    opt.value = genre;
+                    opt.textContent = genre;
+                    select.appendChild(opt);
+                });
+            }
+
+            function applyFiltersAndSort(tbody, allRows) {
+                const { sort, filters } = allTracksState;
+
+                // 1. Filter
+                let visible = allRows.filter(row => {
+                    // Text search: match track name OR artist name
+                    if (filters.search) {
+                        const track = row.dataset.track || '';
+                        const artist = row.dataset.artist || '';
+                        if (!track.includes(filters.search) && !artist.includes(filters.search)) {
+                            return false;
+                        }
+                    }
+
+                    // Playlist filter (data-playlist can be comma-separated for tracks on multiple charts)
+                    if (filters.playlist) {
+                        const filterPlaylist = (filters.playlist || '').trim();
+                        const rowPlaylists = (row.dataset.playlist || '').split(',').map(p => p.trim()).filter(Boolean);
+                        if (!rowPlaylists.includes(filterPlaylist)) return false;
+                    }
+
+                    // Genre filter
+                    if (filters.genre) {
+                        try {
+                            const genres = JSON.parse(row.dataset.genres || '[]');
+                            if (!genres.includes(filters.genre)) return false;
+                        } catch (e) { return false; }
+                    }
+
+                    // Explicit filter
+                    if (filters.explicit !== '') {
+                        if (row.dataset.explicit !== filters.explicit) return false;
+                    }
+
+                    return true;
+                });
+
+                // 2. Sort (use 999 for missing/NaN position so those rows sort last)
+                visible.sort((a, b) => {
+                    let valA, valB;
+
+                    if (sort.type === 'number') {
+                        const rawA = parseFloat(a.dataset[toCamelCase(sort.key)]);
+                        const rawB = parseFloat(b.dataset[toCamelCase(sort.key)]);
+                        valA = (sort.key === 'position' && (Number.isNaN(rawA) || rawA === 0)) ? 999 : (rawA || 0);
+                        valB = (sort.key === 'position' && (Number.isNaN(rawB) || rawB === 0)) ? 999 : (rawB || 0);
+                    } else {
+                        valA = (a.dataset[toCamelCase(sort.key)] || '').toLowerCase();
+                        valB = (b.dataset[toCamelCase(sort.key)] || '').toLowerCase();
+                    }
+
+                    let cmp = 0;
+                    if (valA < valB) cmp = -1;
+                    else if (valA > valB) cmp = 1;
+
+                    return sort.direction === 'asc' ? cmp : -cmp;
+                });
+
+                // 3. Rebuild DOM
+                while (tbody.firstChild) {
+                    tbody.removeChild(tbody.firstChild);
+                }
+
+                if (visible.length === 0) {
+                    const noResultsRow = document.createElement('tr');
+                    noResultsRow.className = 'no-results-row';
+                    noResultsRow.innerHTML = '<td colspan="5">No tracks match the current filters</td>';
+                    tbody.appendChild(noResultsRow);
+                } else {
+                    const fragment = document.createDocumentFragment();
+                    visible.forEach(row => fragment.appendChild(row));
+                    tbody.appendChild(fragment);
+                }
+
+                // 4. Update count
+                document.getElementById('filter-count').textContent = visible.length;
+            }
+
+            function updateSortIndicators(table) {
+                const { sort } = allTracksState;
+
+                table.querySelectorAll('th.sortable').forEach(th => {
+                    const indicator = th.querySelector('.sort-indicator');
+                    if (th.dataset.sortKey === sort.key) {
+                        th.classList.add('sort-active');
+                        indicator.textContent = sort.direction === 'asc' ? ' ▲' : ' ▼';
+                    } else {
+                        th.classList.remove('sort-active');
+                        indicator.textContent = '';
+                    }
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                const allTracksTable = document.getElementById('all-tracks-table');
+                if (!allTracksTable) return;
+
+                const tbody = allTracksTable.querySelector('tbody');
+                const allRows = Array.from(tbody.querySelectorAll('tr'));
+
+                // Populate genre dropdown from data attributes
+                populateGenreDropdown(allRows);
+
+                // Attach sort handlers
+                allTracksTable.querySelectorAll('th.sortable').forEach(th => {
+                    th.addEventListener('click', function() {
+                        const key = this.dataset.sortKey;
+                        const type = this.dataset.sortType;
+
+                        if (allTracksState.sort.key === key) {
+                            allTracksState.sort.direction =
+                                allTracksState.sort.direction === 'asc' ? 'desc' : 'asc';
+                        } else {
+                            allTracksState.sort.key = key;
+                            allTracksState.sort.type = type;
+                            allTracksState.sort.direction = 'asc';
+                        }
+
+                        applyFiltersAndSort(tbody, allRows);
+                        updateSortIndicators(allTracksTable);
+                    });
+                });
+
+                // Attach filter handlers
+                document.getElementById('filter-search').addEventListener('input', function() {
+                    allTracksState.filters.search = this.value.toLowerCase();
+                    applyFiltersAndSort(tbody, allRows);
+                });
+
+                document.getElementById('filter-playlist').addEventListener('change', function() {
+                    allTracksState.filters.playlist = this.value;
+                    applyFiltersAndSort(tbody, allRows);
+                });
+
+                document.getElementById('filter-genre').addEventListener('change', function() {
+                    allTracksState.filters.genre = this.value;
+                    applyFiltersAndSort(tbody, allRows);
+                });
+
+                // Explicit toggle buttons
+                document.querySelectorAll('#all-tracks-filter-bar .toggle-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        document.querySelectorAll('#all-tracks-filter-bar .toggle-btn').forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        allTracksState.filters.explicit = this.dataset.value;
+                        applyFiltersAndSort(tbody, allRows);
+                    });
+                });
+
+                // Reset button
+                document.getElementById('filter-reset').addEventListener('click', function() {
+                    allTracksState.sort = { key: 'position', direction: 'asc', type: 'number' };
+                    allTracksState.filters = { search: '', playlist: '', genre: '', explicit: '' };
+
+                    document.getElementById('filter-search').value = '';
+                    document.getElementById('filter-playlist').value = '';
+                    document.getElementById('filter-genre').value = '';
+                    document.querySelectorAll('#all-tracks-filter-bar .toggle-btn').forEach(b => b.classList.remove('active'));
+                    document.getElementById('explicit-all').classList.add('active');
+
+                    applyFiltersAndSort(tbody, allRows);
+                    updateSortIndicators(allTracksTable);
+                });
+
+                // Set initial sort indicator
+                updateSortIndicators(allTracksTable);
+            });
+        </script>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <p>Generated on {{ generated_at }}</p>
+            <p>by Danh Nguyen</p>
+        </footer>
+    </div><!-- /div.dashboard -->
+        </div><!-- /div#view-charts -->
+
+    {% if supabase_url and supabase_anon_key %}
+    <!-- Supabase Historical Analytics Layer
+         Fetches position history from Supabase and augments each track row with:
+         - Trend badges (NEW / ▲N / ▼N / ◆)
+         - Position-cell tooltip: "N week(s) on chart · Peak: #P"
+         - A run-date selector in the header (when multiple runs exist)
+
+         Schema mapping (v2.0):
+           playlist_scrapes  ← formerly "runs"    (scrape_id, scrape_date, notes)
+           playlist_songs    ← formerly "chart_entries"  (scrape_id, song_id FK→songs, playlist_id FK→playlists, position)
+           songs             ← resolves spotify_id (data-track-id) → internal song_id
+           playlists         ← embedded join from playlist_songs for playlist name
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script>
+    (async function () {
+        const SUPABASE_URL      = '{{ supabase_url }}';
+        const SUPABASE_ANON_KEY = '{{ supabase_anon_key }}';
+        const CURRENT_RUN_ID    = '{{ current_run_id }}';  // timestamp string e.g. "20260218_143022"
+
+        const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        try {
+            // ── 1. Fetch all completed scrape runs ordered oldest → newest ─────
+            //    notes field stores "run_id=YYYYMMDD_HHMMSS" written by supabase_client.py
+            const { data: runs, error: runsErr } = await db
+                .from('playlist_scrapes')
+                .select('scrape_id, scrape_date, notes')
+                .eq('status', 'completed')
+                .order('scrape_date', { ascending: true });
+
+            if (runsErr || !runs || runs.length === 0) return;
+
+            // Identify the current scrape by matching the run_id string in notes;
+            // fall back to the most recent scrape if no match (e.g. first run).
+            const currentRun      = runs.find(r => r.notes && r.notes.includes(`run_id=${CURRENT_RUN_ID}`))
+                                    || runs[runs.length - 1];
+            const currentScrapeId = currentRun.scrape_id;
+
+            // ── 2. Collect all Spotify track IDs visible in this dashboard ─────
+            const allRows = Array.from(document.querySelectorAll('tr[data-track-id]'));
+            const trackIds = [...new Set(allRows.map(r => r.dataset.trackId).filter(Boolean))];
+            if (trackIds.length === 0) return;
+
+            // ── 3a. Resolve Spotify track IDs → internal song_ids ─────────────
+            //    songs.spotify_id is the Spotify track ID stored in data-track-id
+            const { data: songRows, error: songErr } = await db
+                .from('songs')
+                .select('song_id, spotify_id')
+                .in('spotify_id', trackIds);
+
+            if (songErr || !songRows || songRows.length === 0) return;
+
+            const songIdToTrackId = {};
+            const songIds = songRows.map(s => {
+                songIdToTrackId[s.song_id] = s.spotify_id;
+                return s.song_id;
+            });
+
+            // ── 3b. Fetch position history + scrape dates for those songs ───────
+            //    playlist_scrapes(scrape_date) embedded join gives us the date so we
+            //    can deduplicate by ISO calendar week rather than raw scrape count.
+            const { data: history, error: histErr } = await db
+                .from('playlist_songs')
+                .select('scrape_id, song_id, position, playlists(name), playlist_scrapes(scrape_date)')
+                .in('song_id', songIds);
+
+            if (histErr || !history) return;
+
+            // ── Helper: chart-week key "YYYY-MM-DD" (date of the most recent Friday) ─
+            //    Spotify chart weeks run Friday → Thursday, matching the scheduled
+            //    Thursday 11pm PST run (= Friday 7am UTC). A mid-week manual rerun
+            //    on Mon/Tue/Wed/Thu still shows the same playlist data as the
+            //    preceding Friday, so it belongs to that same chart week — not the
+            //    upcoming one.
+            //    getDay(): 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
+            //    daysSinceFriday: Fri=0 Sat=1 Sun=2 Mon=3 Tue=4 Wed=5 Thu=6
+            function chartWeekKey(dateStr) {
+                const d = new Date(dateStr);
+                const daysSinceFriday = (d.getDay() + 2) % 7;
+                const friday = new Date(d);
+                friday.setDate(d.getDate() - daysSinceFriday);
+                return friday.toISOString().slice(0, 10);  // "YYYY-MM-DD" of that Friday
+            }
+
+            // ── 4. Build two lookups from history ─────────────────────────────
+            //    lookup:    "trackId::playlistName" → entries  (per-playlist tabs)
+            //    lookupAll: "trackId"               → entries  (All Tracks tab —
+            //               data-playlist is comma-joined there so the per-playlist
+            //               key never resolves; aggregate across all playlists instead)
+            const lookup    = {};
+            const lookupAll = {};
+            history.forEach(e => {
+                const trackId  = songIdToTrackId[e.song_id];
+                const playlist = e.playlists?.name || '';
+                if (!trackId) return;
+                const entry = {
+                    scrape_id:   e.scrape_id,
+                    position:    e.position,
+                    scrape_date: e.playlist_scrapes?.scrape_date || null,
+                };
+                // Per-playlist lookup
+                if (playlist) {
+                    const key = `${trackId}::${playlist}`;
+                    if (!lookup[key]) lookup[key] = [];
+                    lookup[key].push(entry);
+                }
+                // All-tracks lookup (all playlists combined)
+                if (!lookupAll[trackId]) lookupAll[trackId] = [];
+                lookupAll[trackId].push(entry);
+            });
+
+            // ── 5. (prevRun no longer used — trend now derived per-track from week map) ─
+
+            // ── 6. Augment every track row ─────────────────────────────────────
+            allRows.forEach(row => {
+                const tid     = row.dataset.trackId;
+                const pl      = row.dataset.playlist;
+                // All Tracks tab rows have a comma-joined playlist list; use the
+                // cross-playlist aggregate lookup for those rows.
+                const isAllTracksRow = pl.includes(',') || !pl;
+                const entries = isAllTracksRow
+                    ? (lookupAll[tid] || [])
+                    : (lookup[`${tid}::${pl}`] || []);
+                if (entries.length === 0) return;
+
+                // Collapse multiple scrapes within the same ISO calendar week into
+                // one entry (the most recent scrape for that week). This prevents
+                // mid-week reruns from inflating "weeks on chart" or producing
+                // intra-week trend arrows.
+                const weekMap = {};  // "YYYY-WW" → most recent entry for that week
+                entries.forEach(e => {
+                    const wk = e.scrape_date ? chartWeekKey(e.scrape_date) : String(e.scrape_id);
+                    if (!weekMap[wk] || e.scrape_id > weekMap[wk].scrape_id) {
+                        weekMap[wk] = e;
+                    }
+                });
+                // weekEntries sorted oldest → newest (one representative per week)
+                const weekEntries = Object.values(weekMap)
+                    .sort((a, b) => a.scrape_id - b.scrape_id);
+
+                const weeksOnChart = weekEntries.length;
+                const peakPos      = Math.min(...weekEntries.map(e => e.position));
+
+                // Trend: compare last week's position vs. this week's position
+                let badge = '';
+                if (weeksOnChart === 1) {
+                    badge = '<span class="trend-badge trend-new">NEW</span>';
+                } else {
+                    const prevEntry = weekEntries[weekEntries.length - 2];
+                    const currEntry = weekEntries[weekEntries.length - 1];
+                    const diff = prevEntry.position - currEntry.position;  // positive = moved up
+                    if (diff > 0)
+                        badge = `<span class="trend-badge trend-up">▲${diff}</span>`;
+                    else if (diff < 0)
+                        badge = `<span class="trend-badge trend-down">▼${Math.abs(diff)}</span>`;
+                    else
+                        badge = '<span class="trend-badge trend-same">◆</span>';
+                }
+
+                const posCell = row.querySelector('.position-cell');
+                if (posCell) {
+                    if (badge) posCell.insertAdjacentHTML('beforeend', badge);
+                    posCell.title =
+                        `${weeksOnChart} week${weeksOnChart !== 1 ? 's' : ''} on chart · Peak: #${peakPos}`;
+                }
+            });
+
+            // ── 7. Add historical run selector — one option per calendar week ─
+            //    Deduplicate runs by ISO week (keep most recent scrape per week)
+            //    so the selector reflects weekly cadence, not mid-week reruns.
+            const weekRunMap = {};
+            runs.forEach(r => {
+                const wk = r.scrape_date ? chartWeekKey(r.scrape_date) : String(r.scrape_id);
+                if (!weekRunMap[wk] || r.scrape_id > weekRunMap[wk].scrape_id) {
+                    weekRunMap[wk] = r;
+                }
+            });
+            const weekRuns = Object.values(weekRunMap)
+                .sort((a, b) => b.scrape_id - a.scrape_id);  // newest first
+
+            if (weekRuns.length > 1) {
+                const genAtEl = document.querySelector('.generated-at');
+                if (genAtEl) {
+                    const sel = document.createElement('select');
+                    sel.className = 'run-selector';
+                    sel.title     = 'Browse a previous chart run (view only)';
+
+                    weekRuns.forEach(r => {
+                        const opt = document.createElement('option');
+                        opt.value       = r.scrape_id;
+                        opt.textContent = new Date(r.scrape_date).toLocaleDateString('en-US', {
+                            year: 'numeric', month: 'short', day: 'numeric'
+                        });
+                        if (r.scrape_id === currentScrapeId) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+
+                    genAtEl.after(sel);
+                }
+            }
+
+        } catch (err) {
+            // Non-fatal — dashboard still works without historical data
+            console.warn('[Supabase] Historical data unavailable:', err.message);
+        }
+    })();
+    </script>
+    {% endif %}
