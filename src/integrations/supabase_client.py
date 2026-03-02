@@ -368,7 +368,19 @@ class SupabaseClient:
         artists_seen: Dict[str, Dict],
         artist_enrichment: Dict[str, Dict],
     ) -> Dict[str, int]:
-        """Upsert credit rows for all artists; return {spotify_artist_id: credit_id}."""
+        """Upsert credit rows for all artists; return {spotify_artist_id: credit_id}.
+
+        The credits table has two independent unique constraints (spotify_id,
+        normalized_name).  A naive batch upsert on one constraint can fail when
+        the other constraint is also violated by a different existing row (e.g. a
+        Genius-created stub without a spotify_id).  This method handles three
+        explicit paths to avoid batch-level conflicts:
+
+          1. Row already exists by spotify_id  → UPDATE by spotify_id (batch)
+          2. Row exists by normalized_name only (Genius stub, no spotify_id)
+                                               → UPDATE by normalized_name (individual)
+          3. Truly new row                     → INSERT (batch)
+        """
         if not artists_seen:
             return {}
         rows = []
@@ -387,10 +399,84 @@ class SupabaseClient:
                 'spotify_popularity': enrich.get('popularity'),
                 'updated_at': _now(),
             })
-        result = self._client.table('credits').upsert(
-            rows, on_conflict='spotify_id'
-        ).execute()
-        return {r['spotify_id']: r['credit_id'] for r in result.data}
+
+        all_spotify_ids = [r['spotify_id'] for r in rows]
+
+        # ── Query 1: fetch existing rows by spotify_id (incl. stored norm name) ─
+        sid_result = (
+            self._client.table('credits')
+            .select('credit_id, spotify_id, normalized_name')
+            .in_('spotify_id', all_spotify_ids)
+            .execute()
+        )
+        existing_by_sid: Dict[str, Dict] = {
+            r['spotify_id']: r for r in (sid_result.data or [])
+        }
+
+        # ── Classify into existing vs new ─────────────────────────────────────
+        update_rows: List[Dict] = []
+        new_rows:    List[Dict] = []
+        for row in rows:
+            if row['spotify_id'] in existing_by_sid:
+                # Preserve the stored normalized_name to avoid mutating it.
+                # The display `name` field is still refreshed from Spotify.
+                # Changing normalized_name risks colliding with Genius stubs that
+                # already hold the new value (e.g. Spotify returning "Jaÿ-Z"
+                # one run and "JAY-Z" the next).
+                r = dict(row)
+                r['normalized_name'] = existing_by_sid[row['spotify_id']]['normalized_name']
+                update_rows.append(r)
+            else:
+                new_rows.append(row)
+
+        # ── Path 1: batch upsert existing rows (no normalized_name change) ────
+        if update_rows:
+            self._client.table('credits').upsert(
+                update_rows, on_conflict='spotify_id'
+            ).execute()
+
+        # ── Query 2: Genius stubs for remaining new rows ──────────────────────
+        if new_rows:
+            new_norm_names = [r['normalized_name'] for r in new_rows]
+            genius_result = (
+                self._client.table('credits')
+                .select('credit_id, normalized_name')
+                .in_('normalized_name', new_norm_names)
+                .is_('spotify_id', 'null')
+                .execute()
+            )
+            genius_norms = {r['normalized_name'] for r in (genius_result.data or [])}
+        else:
+            genius_norms = set()
+
+        merge_rows  = [r for r in new_rows if r['normalized_name'] in genius_norms]
+        insert_rows = [r for r in new_rows if r['normalized_name'] not in genius_norms]
+
+        # ── Path 2: individual UPDATE for Genius stubs (add spotify_id) ───────
+        for row in merge_rows:
+            self._client.table('credits').update({
+                'name':               row['name'],
+                'credit_category':    row['credit_category'],
+                'spotify_id':         row['spotify_id'],
+                'spotify_url':        row['spotify_url'],
+                'spotify_image_url':  row['spotify_image_url'],
+                'spotify_followers':  row['spotify_followers'],
+                'spotify_popularity': row['spotify_popularity'],
+                'updated_at':         row['updated_at'],
+            }).eq('normalized_name', row['normalized_name']).execute()
+
+        # ── Path 3: batch INSERT truly new rows ───────────────────────────────
+        if insert_rows:
+            self._client.table('credits').insert(insert_rows).execute()
+
+        # ── Fetch back all credit_ids by spotify_id ───────────────────────────
+        result = (
+            self._client.table('credits')
+            .select('credit_id, spotify_id')
+            .in_('spotify_id', all_spotify_ids)
+            .execute()
+        )
+        return {r['spotify_id']: r['credit_id'] for r in (result.data or [])}
 
     def _upsert_credit_genres(
         self,

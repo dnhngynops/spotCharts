@@ -300,110 +300,11 @@
                  data-genres="{{ pl_analytics.summary.unique_genres }}"
                  data-explicit="{{ pl_analytics.summary.explicit_count }}"
                  data-tracks-label="Tracks"
-                 data-explicit-label="Explicit Tracks">
+                 data-explicit-label="Explicit Tracks"
+                 data-playlist-name="{{ playlist_name }}">
                 <div class="tab-panel">
-                    <!-- Analytics Grid (Playlist-specific) -->
-                    <div class="analytics-grid">
-                        <!-- Top Artists for this playlist -->
-                        <div class="section">
-                            <h2 class="section-title">Top Artists</h2>
-                            <ul class="artist-list">
-                                {% for artist in pl_analytics.top_artists[:10] %}
-                                <li>
-                                    <div class="artist-item">
-                                        <span class="artist-rank">{{ loop.index }}</span>
-                                        <span class="artist-name">
-                                            {% if artist.url %}
-                                            <a href="{{ artist.url }}" target="_blank" class="profile-link" data-type="artist" data-id="{{ artist.profile_key }}">{{ artist.name }}</a>
-                                            {% else %}
-                                            <span class="profile-link" data-type="artist" data-id="{{ artist.profile_key }}">{{ artist.name }}</span>
-                                            {% endif %}
-                                        </span>
-                                        <span class="artist-stats">
-                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ artist.count }} tracks</span>
-                                        </span>
-                                    </div>
-                                    <ul class="track-dropdown">
-                                        {% for t in artist.tracks %}
-                                        <li>
-                                            <span class="dropdown-track-name">
-                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
-                                            </span>
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-
-                        <!-- Top Genres for this playlist -->
-                        {% if pl_analytics.top_genres %}
-                        <div class="section">
-                            <h2 class="section-title">Top Genres</h2>
-                            <ul class="artist-list">
-                                {% for genre in pl_analytics.top_genres %}
-                                <li>
-                                    <div class="artist-item">
-                                        <span class="artist-rank">{{ loop.index }}</span>
-                                        <span class="artist-name">{{ genre.name }}</span>
-                                        <span class="artist-stats">
-                                            <span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">{{ genre.count }} tracks</span>
-                                        </span>
-                                    </div>
-                                    <ul class="track-dropdown">
-                                        {% for t in genre.tracks %}
-                                        <li>
-                                            <span class="dropdown-track-name">
-                                                {% if t.spotify_url %}<a href="{{ t.spotify_url }}" target="_blank">{{ t.track_name }}</a>{% else %}{{ t.track_name }}{% endif %}
-                                            </span>
-                                            <span class="dropdown-track-meta"> — {{ t.artist }}</span>
-                                        </li>
-                                        {% endfor %}
-                                    </ul>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                        {% endif %}
-
-                        <!-- Popularity Stats for this playlist -->
-                        <div class="section" style="display: flex; flex-direction: column;">
-                            <h2 class="section-title">Popularity Stats</h2>
-                            <div style="text-align: center;">
-                                <div style="font-size: 3em; font-weight: 700; color: {{ theme.primary }};">{{ "%.1f"|format(pl_analytics.summary.avg_popularity) }}</div>
-                                <div style="color: {{ theme.text_artist }};">Average Popularity</div>
-                                {% set range_span = pl_analytics.summary.max_popularity - pl_analytics.summary.min_popularity %}
-                                {% set avg_pct = ((pl_analytics.summary.avg_popularity - pl_analytics.summary.min_popularity) / range_span * 100) if range_span > 0 else 50 %}
-                                <div class="pop-range-bar">
-                                    <div class="pop-range-fill" style="left: 0; width: 100%;"></div>
-                                    <div class="pop-range-avg" style="left: {{ avg_pct }}%;"></div>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; font-size: 0.8em; color: {{ theme.text_artist }};">
-                                    <span>{{ pl_analytics.summary.min_popularity }}</span>
-                                    <span>Range: {{ pl_analytics.summary.min_popularity }} – {{ pl_analytics.summary.max_popularity }}</span>
-                                    <span>{{ pl_analytics.summary.max_popularity }}</span>
-                                </div>
-                            </div>
-                            <div class="histogram-wrapper" style="margin-top: auto;">
-                                <div class="histogram-y-label">Tracks</div>
-                                <div style="flex: 1;">
-                                    <div class="histogram">
-                                        {% for bucket in pl_analytics.popularity_histogram %}
-                                        <div class="histogram-col">
-                                            <div class="histogram-count">{{ bucket.count }}</div>
-                                            <div class="histogram-bar-wrap">
-                                                <div class="histogram-bar" style="height: {{ bucket.pct }}%;"></div>
-                                            </div>
-                                            <div class="histogram-label">{{ bucket.label }}</div>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                    <div class="histogram-x-label">Popularity Score</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Analytics Grid — populated lazily from Supabase on first tab click -->
+                    <div class="analytics-grid js-analytics-placeholder"></div>
 
                     <!-- Tracks Table -->
                     <div class="section">
@@ -473,6 +374,11 @@
                 document.getElementById('card-genres').textContent = selectedTab.dataset.genres;
                 document.getElementById('card-explicit').textContent = selectedTab.dataset.explicit;
                 document.getElementById('card-explicit-label').textContent = selectedTab.dataset.explicitLabel;
+
+                // Lazy-load per-playlist analytics on first tab click
+                if (tabId !== 'all-tracks' && typeof loadPlaylistAnalytics === 'function') {
+                    loadPlaylistAnalytics(selectedTab);
+                }
             }
 
             // ===== All Tracks Filter & Sort =====
@@ -687,21 +593,20 @@
         </div><!-- /div#view-charts -->
 
     {% if supabase_url and supabase_anon_key %}
-    <!-- Supabase Historical Analytics Layer
-         Fetches position history from Supabase and augments each track row with:
-         - Trend badges (NEW / ▲N / ▼N / ◆)
-         - Position-cell tooltip: "N week(s) on chart · Peak: #P"
-         - A run-date selector in the header (when multiple runs exist)
+    <!-- Supabase Layer
+         Exposes window.supabaseReady — a Promise resolving to { db, scrapeId } — used by:
+           • Historical trend badges / run selector (below)
+           • Profile modals (profile_modal.html) for on-demand artist/track/album data
+           • Per-playlist analytics lazy-load (loadPlaylistAnalytics)
 
          Schema mapping (v2.0):
-           playlist_scrapes  ← formerly "runs"    (scrape_id, scrape_date, notes)
-           playlist_songs    ← formerly "chart_entries"  (scrape_id, song_id FK→songs, playlist_id FK→playlists, position)
-           songs             ← resolves spotify_id (data-track-id) → internal song_id
-           playlists         ← embedded join from playlist_songs for playlist name
+           playlist_scrapes  (scrape_id, scrape_date, notes)
+           playlist_songs    (scrape_id, song_id → songs, playlist_id → playlists, position)
+           songs             resolves spotify_id (data-track-id) → internal song_id
     -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <script>
-    (async function () {
+    window.supabaseReady = (async function () {
         const SUPABASE_URL      = '{{ supabase_url }}';
         const SUPABASE_ANON_KEY = '{{ supabase_anon_key }}';
         const CURRENT_RUN_ID    = '{{ current_run_id }}';  // timestamp string e.g. "20260218_143022"
@@ -888,10 +793,249 @@
                 }
             }
 
+            // Expose scrapeId for profile modals and lazy analytics
+            return { db, scrapeId: currentScrapeId };
+
         } catch (err) {
             // Non-fatal — dashboard still works without historical data
             console.warn('[Supabase] Historical data unavailable:', err.message);
+            return null;
         }
     })();
+
+    // ── Gap 2: Composite ranking — pure-JS reimplementation of Python's
+    //    _build_deduplicated_ranked_all_tracks() with equal 25% weights on:
+    //    chart appearances · average chart position · track popularity · playlist avg popularity.
+    //    Not used by the current static dashboard (Python already bakes ranked rows);
+    //    exposed as window.computeCompositeRank for future React / live-data consumers.
+    window.computeCompositeRank = function computeCompositeRank(tracks) {
+        // tracks: [{track_id, track_name, artist, playlist, position, popularity}, ...]
+        // Returns: deduplicated array sorted by composite score, each entry gains .rank
+
+        // 1. Per-playlist avg popularity
+        const plPops = {};
+        tracks.forEach(t => {
+            if (!t.playlist) return;
+            if (!plPops[t.playlist]) plPops[t.playlist] = [];
+            if (t.popularity > 0) plPops[t.playlist].push(t.popularity);
+        });
+        const plAvg = {};
+        Object.entries(plPops).forEach(([pl, pops]) => {
+            plAvg[pl] = pops.length ? pops.reduce((a, b) => a + b, 0) / pops.length : 0;
+        });
+
+        // 2. Group by track_id (or name+artist fallback)
+        const groups = {};
+        tracks.forEach(t => {
+            const key = (t.track_id || '').trim() || `${(t.track_name||'').trim()}||${(t.artist||'').trim()}`;
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(t);
+        });
+
+        const maxPlaylists = Math.max(1, Object.keys(plAvg).length);
+
+        // 3. Score each group and pick canonical row
+        const ranked = Object.values(groups).map(appearances => {
+            const numCharts = appearances.length;
+            const positions = appearances.filter(t => t.position > 0).map(t => t.position);
+            const avgPosition = positions.length ? positions.reduce((a, b) => a + b, 0) / positions.length : 50;
+            const trackPop = Math.max(...appearances.map(t => t.popularity || 0));
+            const pls = [...new Set(appearances.map(t => t.playlist).filter(Boolean))];
+            const plAvgForTrack = pls.length
+                ? pls.reduce((s, pl) => s + (plAvg[pl] || 0), 0) / pls.length : 0;
+
+            const chartNorm    = (numCharts / maxPlaylists) * 100;
+            const posNorm      = Math.max(0, (51 - avgPosition) / 50 * 100);
+            const popNorm      = Math.min(100, trackPop);
+            const plAvgNorm    = Math.min(100, plAvgForTrack);
+            const composite    = 0.25 * chartNorm + 0.25 * posNorm + 0.25 * popNorm + 0.25 * plAvgNorm;
+
+            // Pick the most-enriched appearance as the canonical row
+            const canonical = appearances.reduce((best, t) =>
+                (t.popularity || 0) > (best.popularity || 0) ? t : best, appearances[0]);
+
+            return { ...canonical, _composite: composite, _avgPos: avgPosition };
+        });
+
+        ranked.sort((a, b) =>
+            b._composite - a._composite || a._avgPos - b._avgPos || (b.popularity || 0) - (a.popularity || 0));
+
+        ranked.forEach((t, i) => { t.rank = i + 1; delete t._composite; delete t._avgPos; });
+        return ranked;
+    };
+
+    // ── Gap 3: Per-playlist analytics lazy-load ────────────────────────────────
+    //    Called by showTab() on first click of a per-playlist tab.
+    //    Fetches song data for that playlist / scrape from Supabase and renders
+    //    the analytics grid (top artists · top genres · popularity stats) in JS.
+
+    function _buildHistogramJS(pops, numBuckets) {
+        numBuckets = numBuckets || 5;
+        if (!pops.length) return [];
+        const lo = Math.min(...pops), hi = Math.max(...pops);
+        if (lo === hi) return [{ label: String(lo), count: pops.length, pct: 100 }];
+        const span = hi - lo, step = span / numBuckets;
+        const buckets = Array.from({ length: numBuckets }, (_, i) => ({
+            label: `${Math.round(lo + i * step)}\u2013${Math.round(lo + (i + 1) * step)}`,
+            count: 0, pct: 0
+        }));
+        pops.forEach(p => {
+            let idx = Math.floor((p - lo) / step);
+            if (idx >= numBuckets) idx = numBuckets - 1;
+            buckets[idx].count++;
+        });
+        const maxCount = Math.max(...buckets.map(b => b.count)) || 1;
+        buckets.forEach(b => { b.pct = Math.round(b.count / maxCount * 100); });
+        return buckets;
+    }
+
+    function _renderPlaylistAnalyticsHTML(songs) {
+        // songs: array of playlist_songs rows with nested songs/song_genres/song_credits
+        const artistCounts = {}, artistTracks = {}, artistIds = {};
+        const genreCounts  = {}, genreTracks  = {};
+        const pops = [];
+
+        songs.forEach(ps => {
+            const song = ps.songs;
+            if (!song) return;
+            if (song.popularity > 0) pops.push(song.popularity);
+
+            (song.song_credits || []).forEach(sc => {
+                const c = sc.credits;
+                if (!c?.name) return;
+                artistCounts[c.name] = (artistCounts[c.name] || 0) + 1;
+                if (!artistTracks[c.name]) artistTracks[c.name] = [];
+                artistTracks[c.name].push({ track_name: song.title, spotify_url: song.spotify_url });
+                if (c.spotify_id && !artistIds[c.name]) artistIds[c.name] = c.spotify_id;
+            });
+
+            (song.song_genres || []).forEach(sg => {
+                const genre = sg.genres?.genre_name;
+                if (!genre) return;
+                genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+                if (!genreTracks[genre]) genreTracks[genre] = [];
+                const artist = (song.song_credits?.[0]?.credits?.name) || '';
+                genreTracks[genre].push({ track_name: song.title, artist, spotify_url: song.spotify_url });
+            });
+        });
+
+        const topArtists = Object.entries(artistCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const topGenres  = Object.entries(genreCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const avgPop = pops.length ? pops.reduce((a, b) => a + b, 0) / pops.length : 0;
+        const minPop = pops.length ? Math.min(...pops) : 0;
+        const maxPop = pops.length ? Math.max(...pops) : 0;
+        const rangeSpan = maxPop - minPop;
+        const avgPct = rangeSpan > 0 ? ((avgPop - minPop) / rangeSpan * 100) : 50;
+        const histogram = _buildHistogramJS(pops);
+
+        let html = '';
+
+        // Top Artists
+        if (topArtists.length) {
+            html += '<div class="section"><h2 class="section-title">Top Artists</h2><ul class="artist-list">';
+            topArtists.forEach(([name, count], i) => {
+                const key  = artistIds[name] || name;
+                const trks = (artistTracks[name] || []).map(t =>
+                    `<li><span class="dropdown-track-name">${t.spotify_url ? `<a href="${t.spotify_url}" target="_blank">${t.track_name}</a>` : t.track_name}</span></li>`
+                ).join('');
+                html += `<li>
+                    <div class="artist-item">
+                        <span class="artist-rank">${i + 1}</span>
+                        <span class="artist-name"><span class="profile-link" data-type="artist" data-id="${key}">${name}</span></span>
+                        <span class="artist-stats"><span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">${count} tracks</span></span>
+                    </div>
+                    <ul class="track-dropdown">${trks}</ul>
+                </li>`;
+            });
+            html += '</ul></div>';
+        }
+
+        // Top Genres
+        if (topGenres.length) {
+            html += '<div class="section"><h2 class="section-title">Top Genres</h2><ul class="artist-list">';
+            topGenres.forEach(([genre, count], i) => {
+                const trks = (genreTracks[genre] || []).map(t =>
+                    `<li><span class="dropdown-track-name">${t.spotify_url ? `<a href="${t.spotify_url}" target="_blank">${t.track_name}</a>` : t.track_name}</span><span class="dropdown-track-meta"> — ${t.artist}</span></li>`
+                ).join('');
+                html += `<li>
+                    <div class="artist-item">
+                        <span class="artist-rank">${i + 1}</span>
+                        <span class="artist-name">${genre}</span>
+                        <span class="artist-stats"><span class="stat-badge dropdown-toggle" onclick="toggleDropdown(this)">${count} tracks</span></span>
+                    </div>
+                    <ul class="track-dropdown">${trks}</ul>
+                </li>`;
+            });
+            html += '</ul></div>';
+        }
+
+        // Popularity Stats
+        const histBars = histogram.map(b =>
+            `<div class="histogram-col"><div class="histogram-count">${b.count}</div><div class="histogram-bar-wrap"><div class="histogram-bar" style="height:${b.pct}%;"></div></div><div class="histogram-label">${b.label}</div></div>`
+        ).join('');
+        html += `<div class="section" style="display:flex;flex-direction:column;">
+            <h2 class="section-title">Popularity Stats</h2>
+            <div style="text-align:center;">
+                <div style="font-size:3em;font-weight:700;color:#58C69D;">${avgPop.toFixed(1)}</div>
+                <div style="color:#8a9bb0;">Average Popularity</div>
+                <div class="pop-range-bar">
+                    <div class="pop-range-fill" style="left:0;width:100%;"></div>
+                    <div class="pop-range-avg" style="left:${avgPct.toFixed(1)}%;"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:0.8em;color:#8a9bb0;">
+                    <span>${minPop}</span><span>Range: ${minPop} \u2013 ${maxPop}</span><span>${maxPop}</span>
+                </div>
+            </div>
+            <div class="histogram-wrapper" style="margin-top:auto;">
+                <div class="histogram-y-label">Tracks</div>
+                <div style="flex:1;">
+                    <div class="histogram">${histBars}</div>
+                    <div class="histogram-x-label">Popularity Score</div>
+                </div>
+            </div>
+        </div>`;
+
+        return html;
+    }
+
+    async function loadPlaylistAnalytics(tabEl) {
+        if (!tabEl || tabEl.dataset.analyticsLoaded === 'true') return;
+        const playlistName = tabEl.dataset.playlistName;
+        if (!playlistName || !window.supabaseReady) return;
+
+        const container = tabEl.querySelector('.js-analytics-placeholder');
+        if (!container) return;
+
+        container.innerHTML = '<div style="padding:24px;text-align:center;color:#8a9bb0;">Loading analytics\u2026</div>';
+
+        try {
+            const ctx = await window.supabaseReady;
+            if (!ctx) throw new Error('Supabase not ready');
+            const { db, scrapeId } = ctx;
+
+            // Step 1: resolve playlist_id by name
+            const { data: pl, error: plErr } = await db
+                .from('playlists')
+                .select('playlist_id')
+                .eq('name', playlistName)
+                .single();
+            if (plErr || !pl) throw new Error('Playlist not found: ' + playlistName);
+
+            // Step 2: fetch all songs for this playlist / scrape
+            const { data: songs, error: songErr } = await db
+                .from('playlist_songs')
+                .select('position, songs(title, spotify_id, spotify_url, popularity, explicit, song_genres(genres(genre_name)), song_credits(credits(name, spotify_id)))')
+                .eq('scrape_id', scrapeId)
+                .eq('playlist_id', pl.playlist_id)
+                .order('position');
+            if (songErr || !songs) throw new Error('Could not fetch playlist songs');
+
+            container.innerHTML = _renderPlaylistAnalyticsHTML(songs);
+            tabEl.dataset.analyticsLoaded = 'true';
+        } catch (err) {
+            container.innerHTML = '<div style="padding:24px;text-align:center;color:#8a9bb0;">Analytics unavailable.</div>';
+            console.warn('[Supabase] loadPlaylistAnalytics:', err.message);
+        }
+    }
     </script>
     {% endif %}

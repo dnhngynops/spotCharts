@@ -14,12 +14,262 @@
         </div>
     </div>
 
-    <!-- Profile Data -->
+    <!-- Profile Data
+         artistProfiles / trackProfiles / albumProfiles are no longer baked into the HTML.
+         They are fetched on-demand from Supabase when a modal opens and cached in memory.
+         Requires window.supabaseReady (set by dashboard.html's Supabase layer).
+    -->
     <script>
-        const artistProfiles = {{ artist_profiles | tojson | safe }};
-        const trackProfiles = {{ track_profiles | tojson | safe }};
-        const albumProfiles = {{ album_profiles | tojson | safe }};
         const playlistUrls = {{ playlist_urls | tojson | safe }};
+
+        // ── In-memory profile cache (cleared on page reload) ─────────────────
+        const _profileCache = { artists: {}, tracks: {}, albums: {} };
+
+        // ── Helpers ──────────────────────────────────────────────────────────
+        async function _getSupabaseCtx() {
+            if (!window.supabaseReady) return null;
+            try { return await window.supabaseReady; } catch (e) { return null; }
+        }
+
+        function openModalWithLoading() {
+            const modal = document.getElementById('profile-modal');
+            document.getElementById('modal-image-container').innerHTML = '';
+            document.getElementById('modal-title').textContent = 'Loading\u2026';
+            document.getElementById('modal-subtitle').innerHTML = '';
+            document.getElementById('modal-header-genres').innerHTML = '';
+            document.getElementById('modal-body').innerHTML =
+                '<div style="text-align:center;padding:48px;color:var(--text-artist,#8a9bb0)">Loading profile\u2026</div>';
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function showModalError(msg) {
+            document.getElementById('modal-title').textContent = 'Unavailable';
+            document.getElementById('modal-body').innerHTML =
+                `<div style="text-align:center;padding:48px;color:var(--text-artist,#8a9bb0)">${msg}</div>`;
+        }
+
+        // ── Supabase fetch functions ─────────────────────────────────────────
+
+        async function _fetchArtistProfile(db, scrapeId, spotifyId) {
+            // Q1: credit info + genres + song IDs for this artist
+            const { data: credit, error: e1 } = await db
+                .from('credits')
+                .select('credit_id, name, spotify_id, spotify_image_url, spotify_followers, credit_genres(genres(genre_name)), song_credits(song_id)')
+                .eq('spotify_id', spotifyId)
+                .single();
+            if (e1 || !credit) return null;
+
+            const songIds = (credit.song_credits || []).map(sc => sc.song_id);
+            let playlistSongs = [];
+            if (songIds.length > 0 && scrapeId != null) {
+                // Q2: current-run positions + song/album metadata
+                const { data: ps } = await db
+                    .from('playlist_songs')
+                    .select('song_id, position, playlists(name), songs(spotify_id, title, popularity, explicit, preview_url, spotify_url, albums(name, spotify_url, image_url))')
+                    .in('song_id', songIds)
+                    .eq('scrape_id', scrapeId);
+                playlistSongs = ps || [];
+            }
+
+            const playlists = [...new Set(playlistSongs.map(ps => ps.playlists?.name).filter(Boolean))];
+            const tracks = playlistSongs.map(ps => ({
+                track_name:  ps.songs?.title        || '',
+                track_id:    ps.songs?.spotify_id   || '',
+                playlist:    ps.playlists?.name     || '',
+                position:    ps.position             || 0,
+                popularity:  ps.songs?.popularity   || 0,
+                explicit:    ps.songs?.explicit      || false,
+                spotify_url: ps.songs?.spotify_url  || '',
+                preview_url: ps.songs?.preview_url  || '',
+                album:       ps.songs?.albums?.name       || '',
+                album_url:   ps.songs?.albums?.spotify_url || '',
+                album_image: ps.songs?.albums?.image_url  || ''
+            }));
+
+            return {
+                name:     credit.name,
+                id:       credit.spotify_id,
+                url:      `https://open.spotify.com/artist/${credit.spotify_id}`,
+                image:    credit.spotify_image_url || '',
+                followers: credit.spotify_followers || 0,
+                artist_popularity: 0,
+                genres:   (credit.credit_genres || []).map(g => g.genres?.genre_name).filter(Boolean).sort(),
+                chart_count:       playlists.length,
+                playlist_names:    playlists.sort(),
+                track_appearances: tracks.length,
+                tracks: tracks.sort((a, b) => (a.playlist > b.playlist ? 1 : a.playlist < b.playlist ? -1 : 0) || a.position - b.position),
+                avg_track_popularity: tracks.length ? tracks.reduce((s, t) => s + t.popularity, 0) / tracks.length : 0,
+                explicit_count: tracks.filter(t => t.explicit).length
+            };
+        }
+
+        async function _fetchTrackProfile(db, scrapeId, spotifyId) {
+            // Q1: song + album (with all_tracks JSONB) + genres + credits
+            const { data: song, error: e1 } = await db
+                .from('songs')
+                .select('song_id, spotify_id, title, explicit, popularity, preview_url, spotify_url, release_date, duration_ms, albums(album_id, spotify_id, name, image_url, spotify_url, album_type, total_tracks, all_tracks), song_genres(genres(genre_name)), song_credits(credits(name, spotify_id))')
+                .eq('spotify_id', spotifyId)
+                .single();
+            if (e1 || !song) return null;
+
+            let chartPositions = [];
+            if (scrapeId != null) {
+                // Q2: current-run chart positions for this track
+                const { data: pos } = await db
+                    .from('playlist_songs')
+                    .select('position, playlists(name)')
+                    .eq('song_id', song.song_id)
+                    .eq('scrape_id', scrapeId);
+                chartPositions = (pos || [])
+                    .map(p => ({ playlist: p.playlists?.name || '', position: p.position }))
+                    .sort((a, b) => a.position - b.position);
+            }
+
+            const album = song.albums || {};
+            const artistCredits = (song.song_credits || []).map(sc => sc.credits).filter(Boolean);
+            const primaryArtist = artistCredits[0]?.name || '';
+
+            // Process album.all_tracks JSONB — each entry: {id, name, track_number, duration_ms, explicit, spotify_url, artist, popularity}
+            // Mark the currently viewed track as charting so the album dropdown badge renders.
+            const rawAllTracks = album.all_tracks || [];
+            const processedAllTracks = rawAllTracks.map(t => ({
+                track_name:      t.name          || '',
+                track_number:    t.track_number  || 0,
+                duration_ms:     t.duration_ms   || 0,
+                explicit:        t.explicit       || false,
+                spotify_url:     t.spotify_url   || '',
+                is_charting:     t.id === spotifyId,
+                chart_positions: t.id === spotifyId ? chartPositions : [],
+                preview_url:     '',   // not stored in album JSONB
+                popularity:      t.popularity    || 0
+            }));
+
+            return {
+                track_name:   song.title,
+                track_id:     song.spotify_id,
+                artist:       primaryArtist,
+                artists:      artistCredits.map(c => ({ name: c.name, id: c.spotify_id })),
+                album:        album.name        || '',
+                album_id:     album.spotify_id  || '',
+                album_url:    album.spotify_url || '',
+                album_image:  album.image_url   || '',
+                release_date: song.release_date || '',
+                duration_ms:  song.duration_ms  || 0,
+                explicit:     song.explicit      || false,
+                popularity:   song.popularity    || 0,
+                genres:       (song.song_genres || []).map(g => g.genres?.genre_name).filter(Boolean).sort(),
+                spotify_url:  song.spotify_url   || '',
+                preview_url:  song.preview_url   || '',
+                chart_positions: chartPositions,
+                best_position:   chartPositions.length ? Math.min(...chartPositions.map(p => p.position)) : 0,
+                charts_count:    new Set(chartPositions.map(p => p.playlist)).size,
+                _all_tracks_for_album: processedAllTracks  // used by renderTrackModal's album section
+            };
+        }
+
+        async function _fetchAlbumProfile(db, scrapeId, spotifyId) {
+            // Q1: album metadata + full tracklist JSONB
+            const { data: album, error: e1 } = await db
+                .from('albums')
+                .select('album_id, spotify_id, name, image_url, spotify_url, album_type, total_tracks, all_tracks, release_date')
+                .eq('spotify_id', spotifyId)
+                .single();
+            if (e1 || !album) return null;
+
+            // Q2: internal song_ids for all tracks on this album
+            const { data: albumSongs } = await db
+                .from('songs')
+                .select('song_id, spotify_id')
+                .eq('album_id', album.album_id);
+            const albumSongIds = (albumSongs || []).map(s => s.song_id);
+
+            let chartSongs = [];
+            if (albumSongIds.length > 0 && scrapeId != null) {
+                // Q3: current-run positions for album songs (includes preview_url from songs table)
+                const { data: cs } = await db
+                    .from('playlist_songs')
+                    .select('song_id, position, playlists(name), songs(spotify_id, title, popularity, explicit, preview_url, spotify_url)')
+                    .in('song_id', albumSongIds)
+                    .eq('scrape_id', scrapeId);
+                chartSongs = cs || [];
+            }
+
+            // Build per-track charting lookup  {spotifyTrackId: [{playlist, position}, ...]}
+            const chartingByTrackId = {};
+            chartSongs.forEach(cs => {
+                const tid = cs.songs?.spotify_id;
+                if (!tid) return;
+                if (!chartingByTrackId[tid]) chartingByTrackId[tid] = [];
+                chartingByTrackId[tid].push({ playlist: cs.playlists?.name || '', position: cs.position });
+            });
+            const chartingTrackIds = new Set(Object.keys(chartingByTrackId));
+
+            // Process all_tracks JSONB → full tracklist with is_charting flags
+            const rawAllTracks = album.all_tracks || [];
+            const allTracksInfo = rawAllTracks
+                .map(t => ({
+                    track_name:      t.name         || '',
+                    track_id:        t.id            || '',
+                    track_number:    t.track_number  || 0,
+                    duration_ms:     t.duration_ms   || 0,
+                    popularity:      t.popularity    || 0,
+                    explicit:        t.explicit       || false,
+                    spotify_url:     t.spotify_url   || '',
+                    is_charting:     chartingTrackIds.has(t.id || ''),
+                    chart_positions: chartingByTrackId[t.id] || [],
+                    preview_url:     ''  // not in JSONB; header preview comes from charting_tracks
+                }))
+                .sort((a, b) => a.track_number - b.track_number);
+
+            // charting_tracks list — one entry per playlist_songs row (deduplicated later by the modal)
+            const chartingTrackList = chartSongs.map(cs => ({
+                track_name:  cs.songs?.title       || '',
+                track_id:    cs.songs?.spotify_id  || '',
+                playlist:    cs.playlists?.name    || '',
+                position:    cs.position            || 0,
+                popularity:  cs.songs?.popularity  || 0,
+                explicit:    cs.songs?.explicit     || false,
+                spotify_url: cs.songs?.spotify_url || '',
+                preview_url: cs.songs?.preview_url || ''
+            })).sort((a, b) =>
+                (a.playlist > b.playlist ? 1 : a.playlist < b.playlist ? -1 : 0) || a.position - b.position
+            );
+
+            const playlists = [...new Set(chartSongs.map(cs => cs.playlists?.name).filter(Boolean))];
+
+            // avg_popularity from full tracklist when available, else from charting tracks
+            const tracksForAvg = rawAllTracks.length > 0 ? rawAllTracks : chartingTrackList;
+            const pops = tracksForAvg.map(t => t.popularity).filter(v => v > 0);
+            const avgPopularity = pops.length ? pops.reduce((a, b) => a + b, 0) / pops.length : 0;
+
+            // Attempt to get primary artist from JSONB first track
+            const primaryArtist = rawAllTracks[0]?.artist || '';
+
+            // Unique charting track count
+            const seenIds = new Set();
+            const uniqueCharting = chartingTrackList.filter(t => {
+                const k = t.track_id || t.track_name;
+                if (seenIds.has(k)) return false;
+                seenIds.add(k); return true;
+            });
+
+            return {
+                album:               album.name         || '',
+                album_id:            album.spotify_id   || '',
+                album_url:           album.spotify_url  || '',
+                album_image:         album.image_url    || '',
+                artist:              primaryArtist,
+                release_date:        album.release_date || '',
+                album_type:          album.album_type   || '',
+                total_tracks:        album.total_tracks  || 0,
+                charting_tracks:     chartingTrackList,
+                charting_track_count: uniqueCharting.length,
+                playlists_reached:   playlists.sort(),
+                avg_popularity:      avgPopularity,
+                all_tracks:          allTracksInfo
+            };
+        }
 
         function getPlaylistUrl(playlistName) {
             // Try exact match first
@@ -37,10 +287,21 @@
             return num.toString();
         }
 
-        function openArtistModal(artistKey) {
-            const artist = artistProfiles[artistKey];
-            if (!artist) return;
+        async function openArtistModal(artistKey) {
+            openModalWithLoading();
+            if (_profileCache.artists[artistKey]) {
+                renderArtistModal(_profileCache.artists[artistKey]);
+                return;
+            }
+            const ctx = await _getSupabaseCtx();
+            if (!ctx) { showModalError('Artist profile unavailable \u2014 Supabase not configured.'); return; }
+            const profile = await _fetchArtistProfile(ctx.db, ctx.scrapeId, artistKey);
+            if (!profile) { showModalError('Artist profile not found.'); return; }
+            _profileCache.artists[artistKey] = profile;
+            renderArtistModal(profile);
+        }
 
+        function renderArtistModal(artist) {
             const modal = document.getElementById('profile-modal');
             const imageContainer = document.getElementById('modal-image-container');
             const title = document.getElementById('modal-title');
@@ -381,10 +642,21 @@
             });
         }
 
-        function openTrackModal(trackKey) {
-            const track = trackProfiles[trackKey];
-            if (!track) return;
+        async function openTrackModal(trackKey) {
+            openModalWithLoading();
+            if (_profileCache.tracks[trackKey]) {
+                renderTrackModal(_profileCache.tracks[trackKey]);
+                return;
+            }
+            const ctx = await _getSupabaseCtx();
+            if (!ctx) { showModalError('Track profile unavailable \u2014 Supabase not configured.'); return; }
+            const profile = await _fetchTrackProfile(ctx.db, ctx.scrapeId, trackKey);
+            if (!profile) { showModalError('Track profile not found.'); return; }
+            _profileCache.tracks[trackKey] = profile;
+            renderTrackModal(profile);
+        }
 
+        function renderTrackModal(track) {
             const modal = document.getElementById('profile-modal');
             const imageContainer = document.getElementById('modal-image-container');
             const title = document.getElementById('modal-title');
@@ -472,10 +744,9 @@
             </div>`;
 
             // Album section with tracklist dropdown
+            // _all_tracks_for_album is populated by _fetchTrackProfile from the album's JSONB
             if (track.album) {
-                const albumKey = track.album_id || '';
-                const albumData = albumKey && albumProfiles && albumProfiles[albumKey] ? albumProfiles[albumKey] : null;
-                const allTracks = albumData && albumData.all_tracks && albumData.all_tracks.length > 0 ? albumData.all_tracks : null;
+                const allTracks = track._all_tracks_for_album && track._all_tracks_for_album.length > 0 ? track._all_tracks_for_album : null;
                 const chevron = allTracks ? `<span class="track-album-chevron">▾</span>` : '';
                 const albumTitle = track.album_url
                     ? `<a href="${track.album_url}" target="_blank" onclick="event.stopPropagation();" style="color: inherit; text-decoration: none;">${track.album}</a>`
@@ -542,10 +813,21 @@
             document.body.style.overflow = 'hidden';
         }
 
-        function openAlbumModal(albumKey) {
-            const album = albumProfiles[albumKey];
-            if (!album) return;
+        async function openAlbumModal(albumKey) {
+            openModalWithLoading();
+            if (_profileCache.albums[albumKey]) {
+                renderAlbumModal(_profileCache.albums[albumKey]);
+                return;
+            }
+            const ctx = await _getSupabaseCtx();
+            if (!ctx) { showModalError('Album profile unavailable \u2014 Supabase not configured.'); return; }
+            const profile = await _fetchAlbumProfile(ctx.db, ctx.scrapeId, albumKey);
+            if (!profile) { showModalError('Album profile not found.'); return; }
+            _profileCache.albums[albumKey] = profile;
+            renderAlbumModal(profile);
+        }
 
+        function renderAlbumModal(album) {
             const modal = document.getElementById('profile-modal');
             const imageContainer = document.getElementById('modal-image-container');
             const title = document.getElementById('modal-title');

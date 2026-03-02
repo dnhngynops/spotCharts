@@ -4,6 +4,39 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [3.3.0] - 2026-03-02
+
+### Changed — On-Demand Profile Fetching + Lazy Analytics + Supabase Credit Upsert Fix
+
+#### Dashboard Generator (`src/apps/charts/generator.py`)
+
+- **Removed baked-in profile serialization** — `_prepare_artist_profiles()`, `_prepare_track_profiles()`, and `_prepare_album_profiles()` (~250 lines) removed entirely. Profile data is no longer serialized from Python and baked into the HTML at generation time. The template `render()` call no longer receives `artist_profiles`, `track_profiles`, or `album_profiles` variables.
+- Profile link `data-id` attributes still set correctly via Spotify IDs; `_track_profile_key()`, `_artist_profile_key()`, `_album_profile_key()`, and `_slugify()` are preserved.
+
+#### HTML Dashboard (`templates/charts/dashboard.html`)
+
+- **`window.supabaseReady` IIFE** — async IIFE resolves to `{ db, scrapeId }` for use by profile modals and analytics. Resolves to `undefined` on no-Supabase or empty-scrape early returns (modals and analytics silently no-op).
+- **`window.computeCompositeRank()`** — extracted global helper used for consistent composite ranking across views.
+- **Lazy per-playlist analytics** — tab divs carry `data-playlist-name`; analytics grids use `.js-analytics-placeholder` divs. `showTab()` calls `loadPlaylistAnalytics()` on first click: fetches `playlist_songs → songs → song_genres → song_credits` from Supabase for that playlist, then calls `_renderPlaylistAnalyticsHTML()` to build and inject the genre breakdown, histogram, and track credits grid.
+- **Genre column fix** — `song_genres(genre)` → `song_genres(genres(genre_name))` (PostgREST embedded join through FK); `sg.genre` → `sg.genres?.genre_name` in `_renderPlaylistAnalyticsHTML()`.
+
+#### Profile Modal (`templates/components/profile_modal.html`)
+
+- **On-demand Supabase fetching** — replaced baked-in JSON blobs with async fetch functions: `_fetchArtistProfile(id)`, `_fetchTrackProfile(id)`, `_fetchAlbumProfile(id)`. Results are cached in `_profileCache` (keyed by Spotify ID) to avoid redundant round-trips.
+- **Async modal openers** — `openArtistModal(id)`, `openTrackModal(id)`, `openAlbumModal(id)` each await `window.supabaseReady` → fetch → render. `openModalWithLoading()` shows a spinner while data is in-flight; `showModalError()` handles failed fetches gracefully.
+- **Extracted render functions** — `renderArtistModal(data)`, `renderTrackModal(data)`, `renderAlbumModal(data)` are pure render functions that receive the fetched data and produce modal HTML.
+- **Genre column fix** — `credit_genres(genre)` → `credit_genres(genres(genre_name))` in artist profile query; `song_genres(genre)` → `song_genres(genres(genre_name))` in track profile query; all `.map(g => g.genre)` → `.map(g => g.genres?.genre_name).filter(Boolean)`.
+
+#### Supabase Client (`src/integrations/supabase_client.py`)
+
+- **`_upsert_credits()` three-path rewrite** — the `credits` table has two unique constraints (`spotify_id` and `normalized_name`). A single batch upsert fails when a Genius stub (row with `normalized_name` set but `spotify_id IS NULL`) or `normalized_name` drift between runs causes a constraint conflict. Replaced with:
+  - **Path 1**: Pre-fetch existing rows by `spotify_id`; preserve their stored `normalized_name` in the update payload (preventing mutations that would conflict with stubs); batch upsert via `on_conflict='spotify_id'`.
+  - **Path 2**: For new rows whose `normalized_name` matches a Genius stub, issue individual `UPDATE` calls (add `spotify_id` to the existing stub row).
+  - **Path 3**: Batch `INSERT` truly new rows that have neither an existing `spotify_id` nor a matching Genius stub.
+  - Fetch back all `credit_id`s by `spotify_id` to return the complete ID map.
+
+---
+
 ## [3.2.0] - 2026-02-25
 
 ### Added — Company / Representation Layer (A&R CRM scaffolding)

@@ -257,10 +257,9 @@ def get_playlist_tracks(playlist_id, playlist_name):
 - `_build_histogram()`: Static method for dynamic histogram bin calculation based on actual data range
 - `_format_track_row()`: Formats individual tracks for table display with profile link data attributes
 - `_format_track_row_with_playlist()`: Formats All Tracks row (no playlist column; data-playlist for filter)
-- `_prepare_artist_profiles()`: Aggregates track data by artist for popup profiles
-- `_prepare_track_profiles()`: Aggregates chart positions per unique track for popup profiles
-- `_prepare_album_profiles()`: Aggregates charting tracks by album for popup profiles
 - `_slugify()`: Generates URL-safe keys for profile linking
+
+> Profile data is **no longer baked into the HTML** at generation time. `_prepare_artist_profiles()`, `_prepare_track_profiles()`, and `_prepare_album_profiles()` were removed in v3.3.0. Profile data is now fetched from Supabase on-demand in the browser when the user clicks a profile link (see `templates/components/profile_modal.html`).
 
 **Analytics Features**:
 - Summary statistics (**unique tracks**, playlists, average popularity, explicit count, unique genres)
