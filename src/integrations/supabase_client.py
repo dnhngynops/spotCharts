@@ -115,17 +115,23 @@ class SupabaseClient:
 
         song_db_ids = [row['song_id'] for row in rows if row.get('song_id')]
 
-        # 3. Artists: song_credits → credits
-        credits_result = (
+        # 3. Artists: song_credits → credits (filter explicitly by 'Artist' role on the song)
+        role_result = self._client.table('roles').select('role_id').eq('role_name', _ARTIST_ROLE_NAME).execute()
+        artist_role_id = role_result.data[0]['role_id'] if role_result.data else None
+
+        query = (
             self._client.table('song_credits')
             .select(
                 'song_id, '
-                'credits(spotify_id, name, spotify_url, spotify_image_url,'
+                'credits!inner(spotify_id, name, spotify_url, spotify_image_url,'
                 '        spotify_followers, spotify_popularity)'
             )
             .in_('song_id', song_db_ids)
-            .execute()
         )
+        if artist_role_id:
+            query = query.eq('role_id', artist_role_id)
+        
+        credits_result = query.execute()
         credits_by_song: Dict[int, List[Dict]] = {}
         for sc in (credits_result.data or []):
             cred = sc.get('credits') or {}
@@ -155,14 +161,18 @@ class SupabaseClient:
             artists_raw  = credits_by_song.get(song_db_id, [])
             primary      = artists_raw[0] if artists_raw else {}
 
-            artists = [
-                {
-                    'id':   a.get('spotify_id') or '',
-                    'name': a.get('name') or '',
-                    'url':  a.get('spotify_url') or '',
-                }
-                for a in artists_raw
-            ]
+            artists = []
+            seen_artist_ids = set()
+            for a in artists_raw:
+                # Use spotify_id if available, fallback to name to deduplicate
+                aid = a.get('spotify_id') or a.get('name') or ''
+                if aid and aid not in seen_artist_ids:
+                    seen_artist_ids.add(aid)
+                    artists.append({
+                        'id':   a.get('spotify_id') or '',
+                        'name': a.get('name') or '',
+                        'url':  a.get('spotify_url') or '',
+                    })
 
             tracks.append({
                 'track_id':           song.get('spotify_id') or '',
