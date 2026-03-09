@@ -4,6 +4,115 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [3.5.2] - 2026-03-09
+
+### Changed — React Dashboard UI/UX Polish
+
+Implemented design and experiential improvements across the dashboard:
+
+#### TracksTable (`frontend/src/components/charts/TracksTable.tsx`, `TracksTable.module.css`)
+
+- **Sticky headers** — Added `position: sticky; top: 0` to table headers with a solid background and `z-index`, keeping contextual columns visible while scrolling long track lists.
+- **Dynamic data bars** — Popularity bars now animate their widths on mount (using a `@keyframes` scaleX transform for hardware-accelerated 60fps smoothing) rather than instantly snapping to their values.
+- **Row hover polish** — Added a subtle scaling `transform: scale(1.08)` and `box-shadow` depth effect to album thumbnails when hovering over track rows.
+- **Accessibility (A11y)** — `TracksTable` headers now dynamically receive `aria-sort="ascending"`, `"descending"`, or `"none"` states, improving compatibility with screen readers navigating the dashboard.
+
+#### ProfileModal (`frontend/src/components/shared/ProfileModal.module.css`)
+
+- **Glassmorphism modal** — The modal overlay backdrop now utilizes `backdrop-filter: blur(8px)` combined with a more transparent solid background, dropping the rigid dark overlay for a modern frosted-glass aesthetic.
+
+---
+
+## [3.5.1] - 2026-03-09
+
+### Fixed — Trend Badge Correctness + scrape_type Isolation
+
+#### useTrendData (`frontend/src/hooks/useTrendData.ts`)
+
+- **Removed dead code** — `currentRun` lookup and unused `currentScrapeId` variable removed. The variable was computed to find the matching scrape by `run_id` but was never referenced in the history query or badge calculation.
+
+#### SupabaseClient (`src/integrations/supabase_client.py`)
+
+- **`scrape_type` now parameterized** — `save_run()` and `_insert_scrape()` accept a `scrape_type` argument (default `'scheduled'` for backwards compatibility). Previously `scrape_type` was hardcoded to `'scheduled'` for every run, making it impossible for the frontend's `scheduled`-only filter to distinguish CI runs from local development runs.
+
+#### Pipeline Orchestration (`main.py`)
+
+- **CI vs local detection** — `scrape_type` is now set to `'scheduled'` when `GITHUB_ACTIONS` env var is present (CI/cron), and `'manual'` otherwise (local dev). Local `main.py` runs no longer write `'scheduled'` rows to Supabase, preventing local development runs from polluting the trend history used by the React dashboard.
+- Log output now includes `(type: scheduled|manual)` to confirm which mode was used.
+
+#### Verification findings
+
+- Audited badge assignment against live Supabase data. Of 161 tracks displayed in the current `data.json` (March 4 preview run):
+  - **94 tracks correctly show `NEW`** — first appearance in any scheduled chart run
+  - **6 tracks correctly show `▲`/`▼`/`◆`** — carryover from the prior scheduled run with accurate position deltas
+  - **61 tracks show no badge** — present in the March 4 preview but absent from all scheduled Supabase runs (chart changed between preview and CI run); no false positives
+- Chart week deduplication confirmed working: 8 local dev runs spanning Feb 27–Mar 4 correctly collapse into one chart week (week of Feb 27)
+
+---
+
+## [3.5.0] - 2026-03-05
+
+### Changed — React Dashboard Visual Parity (Round 3 — All Tracks Tab)
+
+Third round of visual and functional fixes for the React frontend (`frontend/`), focused on the All Tracks tab. Changes bring TracksTable, PopularityStats, and ExplicitStats into parity with the Jinja2 reference while adding new interactive behaviors.
+
+#### TracksTable (`frontend/src/components/charts/TracksTable.tsx`, `TracksTable.module.css`)
+
+- **Hyperlink hover** — `.profileLink` hover no longer adds underline; color-change only, matching Jinja2.
+- **Spotify links** — Track names, artist names, and album titles converted from `<span>` to `<a href>` elements. Regular click still opens profile modal; Ctrl/Cmd+click or middle-click navigates to Spotify in a new tab.
+- **Filter control hover** — Toggle buttons (All/Yes/No) now use teal background + `translateY(-1px)` lift on hover instead of gray. Reset button uses same teal lift effect. All interactive filter elements have `outline: none`.
+- **Section border removed** — `.section` no longer has `border: 1px solid var(--border)`, matching Jinja2 borderless section style.
+- **Border-radius** — `.section` border-radius increased from `10px` to `12px`.
+- **Section title** — `.tableTitle` font-size increased from `1.4em` to `1.5em`.
+
+#### PopularityStats (`frontend/src/components/charts/PopularityStats.tsx`, `PopularityStats.module.css`)
+
+- **Grid layout** — Switched from `auto-fill` to `auto-fit` with `minmax(200px, 1fr)` for even horizontal distribution; gap increased from `14px` to `15px`.
+- **Card styling** — Background changed from `var(--bar-bg)` to `rgba(0,0,0,0.2)`; border removed; padding reduced to `15px` (matching Jinja2 `.popularity-card`).
+- **Card hover** — Added `background: rgba(88,198,157,0.12); transform: translateY(-1px)` hover effect, matching Jinja2 `.overlap-stat.dropdown-toggle:hover`.
+- **Playlist name font** — `.playlistName` font-size increased from `0.78em` to `0.9em`.
+- **Playlist links** — Playlist name is now a `<a href>` link to Spotify when `playlist_urls` is available (no underline, hover color change only).
+- **Section border/radius/title** — Same fixes as TracksTable applied.
+
+#### ExplicitStats (`frontend/src/components/charts/ExplicitStats.tsx`, `ExplicitStats.module.css`)
+
+- Same grid, card, hover, border, and playlist link fixes as PopularityStats.
+- **Bar height** — `.barContainer` height increased from `6px` to `8px` (matching Jinja2 `explicit-bar-container`).
+- **Percentage text** — `.percentage` font-size increased from `0.8em` to `1.2em` with `font-weight: 600` (matching Jinja2).
+
+#### ChartsView (`frontend/src/components/charts/ChartsView.tsx`)
+
+- `playlist_urls` from `RunData` is now passed as a prop to both `PopularityStats` and `ExplicitStats` in the All Tracks tab and per-playlist tabs.
+
+---
+
+## [3.4.0] - 2026-03-04
+
+### Changed — React Dashboard Visual Parity (Round 2)
+
+Second round of CSS and functional fixes to bring the React frontend (`frontend/`) into closer visual parity with the Jinja2 reference templates (`templates/`).
+
+#### CSS Modules (`frontend/src/components/`)
+
+- **Section padding** — `.section` padding increased from `24px` to `30px` across `CollapsibleList`, `PopularityStats`, `ExplicitStats`, `ChartOverlap`, and `TracksTable` modules to match Jinja2 card spacing.
+- **Grid gaps** — `analyticsGrid`, `analyticsGrid2`, and `statsRow` gaps increased from `20px` to `30px` in `ChartsView.module.css`.
+- **Summary cards** — `SummaryCards` `.grid` `margin-bottom` increased from `32px` to `40px`.
+- **Playlist tabs** — `PlaylistTabs` `.tabButtons` gap reduced from `8px` to `5px` for tighter tab grouping.
+- **Typography** — `PopularityStats` `.avgValue` font-size reduced from `2em` to `1.8em`; `ChartOverlap` `.number` font-size reduced from `2.2em` to `2em`.
+- **Track table** — `TracksTable` `.albumThumb` size increased from `36px` to `40px`; `.popBarBg` height increased from `5px` to `6px`.
+
+#### ChartsView (`frontend/src/components/charts/ChartsView.tsx`)
+
+- **Static subtitle** — header subtitle now always shows "Cross-Playlist Analytics & Insights" instead of a dynamic generated-at date string. The run date is already displayed in the footer, so no information is lost.
+
+#### Profile Modal (`frontend/src/components/shared/ProfileModal.tsx`, `ProfileModal.module.css`)
+
+- **Header gradient** — `.modalHeader` now has `background: linear-gradient(180deg, rgba(29, 185, 84, 0.15) 0%, transparent 100%)`, matching the Jinja2 modal header.
+- **Charting track row highlight** — album "All Tracks" rows where `is_charting === true` now receive a teal background tint (`rgba(88, 198, 157, 0.06)`, `rgba(88, 198, 157, 0.12)` on hover), matching the Jinja2 highlighted row behavior.
+- **Mini bar chart dropdown** — album modal "Avg Popularity" stat card now includes a `MiniBarChart` sub-component in its hover dropdown, showing a track-by-track popularity distribution bar chart (max height 60px, bars scale linearly from 0–100 popularity). Previously this card had `noDropdown` set and showed no distribution.
+
+---
+
 ## [3.3.0] - 2026-03-02
 
 ### Changed — On-Demand Profile Fetching + Lazy Analytics + Supabase Credit Upsert Fix

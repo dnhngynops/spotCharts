@@ -1,0 +1,408 @@
+.section {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 30px;
+  margin-top: 24px;
+}
+
+.tableHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tableTitle {
+  font-size: 1.71em;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: 'Libre Franklin', sans-serif;
+}
+
+.tableMeta {
+  font-size: 0.85em;
+  color: var(--text-artist);
+}
+
+/* Filter bar */
+.filterBar {
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filterLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.filterInput {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.85em;
+  padding: 6px 10px;
+  min-width: 200px;
+  outline: none;
+  font-family: inherit;
+}
+
+.filterInput:focus {
+  border-color: var(--primary);
+}
+
+.filterSelect {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85em;
+  padding: 6px 10px;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  min-width: 130px;
+}
+
+.filterSelect:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.toggleButtons {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toggleBtn {
+  background: var(--surface);
+  border: none;
+  color: var(--text-artist);
+  padding: 6px 12px;
+  font-size: 0.82em;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s ease, transform 0.15s ease, color 0.15s;
+  border-right: 1px solid var(--border);
+}
+
+.toggleBtn:last-child {
+  border-right: none;
+}
+
+.toggleBtn:hover:not(.toggleActive) {
+  background: rgba(88, 198, 157, 0.08);
+  color: var(--text-secondary);
+  transform: translateY(-1px);
+}
+
+.toggleActive {
+  background: rgba(88, 198, 157, 0.2);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.resetBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-artist);
+  font-size: 0.82em;
+  padding: 6px 14px;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s ease, transform 0.15s ease, color 0.15s;
+}
+
+.resetBtn:hover {
+  background: rgba(88, 198, 157, 0.08);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.filterResults {
+  margin-top: 8px;
+  font-size: 0.82em;
+  color: var(--text-artist);
+}
+
+.filterCount {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Table */
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875em;
+}
+
+.th {
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--text-artist);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 10;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.sortable:hover {
+  color: var(--text-secondary);
+}
+
+.sortActive {
+  color: var(--primary);
+}
+
+.sortIndicator {
+  font-size: 0.9em;
+}
+
+.row {
+  border-bottom: 1px solid var(--border);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+/* Apply hover directly to cells for cross-browser reliability with border-collapse */
+.row:hover .posCell,
+.row:hover .trackCell,
+.row:hover .albumCell,
+.row:hover .durationCell,
+.row:hover .popCell {
+  background: var(--bar-bg);
+  transition: background 0.1s;
+}
+
+/* Position cell */
+.posCell {
+  padding: 10px 12px;
+  vertical-align: middle;
+  white-space: nowrap;
+  color: var(--text-artist);
+  font-size: 0.9em;
+  min-width: 60px;
+}
+
+.posWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.posNum {
+  display: inline-block;
+  min-width: 24px;
+  text-align: center;
+}
+
+/* Trend badges */
+.trendBadge {
+  display: inline-block;
+  font-size: 0.72em;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.trendNew  { background: rgba(88, 198, 157, 0.2); color: var(--primary); }
+.trendUp   { background: rgba(88, 198, 157, 0.2);  color: var(--brand-green-raw); }
+.trendDown { background: rgba(232, 67, 147, 0.15); color: var(--trend-down); }
+.trendSame { background: var(--bar-bg); color: var(--text-artist); }
+
+/* Track cell */
+.trackCell {
+  padding: 10px 12px;
+  vertical-align: middle;
+  max-width: 280px;
+}
+
+.trackInner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.albumThumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.row:hover .albumThumb {
+  transform: scale(1.08) translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.trackMeta {
+  min-width: 0;
+}
+
+.trackName {
+  color: var(--text-track);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.artistList {
+  font-size: 0.82em;
+  color: var(--text-artist);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.artistSep {
+  color: var(--text-artist);
+}
+
+.explicit {
+  display: inline-block;
+  background: var(--bar-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-size: 0.62em;
+  padding: 0 4px;
+  color: var(--text-artist);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Profile links */
+.profileLink {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.profileLink:hover {
+  color: var(--primary);
+}
+
+/* Album cell */
+.albumCell {
+  padding: 10px 12px;
+  vertical-align: middle;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+  font-size: 0.85em;
+}
+
+.albumText {
+  color: var(--text-secondary);
+}
+
+/* Duration cell */
+.durationCell {
+  padding: 10px 12px;
+  vertical-align: middle;
+  color: var(--text-artist);
+  white-space: nowrap;
+  font-size: 0.85em;
+}
+
+/* Popularity cell */
+.popCell {
+  padding: 10px 12px;
+  vertical-align: middle;
+  min-width: 110px;
+}
+
+.popContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.popValue {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  min-width: 24px;
+  text-align: right;
+}
+
+.popBarBg {
+  flex: 1;
+  background: var(--bar-bg);
+  border-radius: 3px;
+  height: 6px;
+  overflow: hidden;
+  display: block;
+}
+
+.popBar {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transform-origin: left;
+  animation: popBarGrow 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes popBarGrow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* No results */
+.noResults {
+  text-align: center;
+  padding: 36px;
+  color: var(--text-artist);
+  font-size: 0.9em;
+}
