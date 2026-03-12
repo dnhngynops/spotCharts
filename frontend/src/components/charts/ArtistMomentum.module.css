@@ -1,0 +1,79 @@
+.container {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.title {
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--primary);
+  font-family: 'Libre Franklin', sans-serif;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.rank {
+  width: 22px;
+  font-size: 0.8em;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.name {
+  flex: 1;
+  color: var(--text-bright);
+  font-size: 0.9em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tier {
+  font-size: 0.7em;
+  color: var(--text-muted);
+  background: var(--bar-bg);
+  border-radius: 3px;
+  padding: 1px 4px;
+  flex-shrink: 0;
+}
+
+.tracks {
+  font-size: 0.75em;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.badgeNew { font-size: 0.75em; color: var(--primary); font-weight: 600; flex-shrink: 0; }
+.badgeUp  { font-size: 0.75em; color: var(--brand-green-raw); font-weight: 600; flex-shrink: 0; }
+.badgeDown { font-size: 0.75em; color: var(--trend-down); font-weight: 600; flex-shrink: 0; }
+.badgeFlat { font-size: 0.75em; color: var(--text-muted); font-weight: 600; flex-shrink: 0; }
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin: 0 0 12px;
+}

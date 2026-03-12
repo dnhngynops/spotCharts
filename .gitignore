@@ -25,6 +25,13 @@ venv/
 ENV/
 env/
 
+# Node
+node_modules/
+frontend/dist/
+# Un-ignore frontend/src/lib/ — 'lib/' above is a Python build artifact pattern
+!frontend/src/lib/
+!frontend/src/lib/**
+
 # Environment variables
 .env
 
@@ -52,8 +59,11 @@ logs/*
 *.pdf
 !templates/*.html
 !templates/**/*.html
-# Allow GitHub Pages dashboard (exception must come after general rule)
-!docs/index.html
+# Allow the Vite entry point
+!frontend/index.html
+# Allow full GitHub Pages build output (React assets + data.json)
+!docs/
+!docs/**
 
 # Test outputs
 tests/output/*

@@ -170,7 +170,7 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-divider);
   white-space: nowrap;
   font-weight: 600;
   position: sticky;
@@ -197,7 +197,7 @@
 }
 
 .row {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--row-divider);
 }
 
 .row:last-child {
@@ -210,8 +210,8 @@
 .row:hover .albumCell,
 .row:hover .durationCell,
 .row:hover .popCell {
-  background: var(--bar-bg);
-  transition: background 0.1s;
+  background: var(--row-hover);
+  transition: background 0.15s ease;
 }
 
 /* Position cell */
@@ -248,8 +248,8 @@
 }
 
 .trendNew  { background: rgba(88, 198, 157, 0.2); color: var(--primary); }
-.trendUp   { background: rgba(88, 198, 157, 0.2);  color: var(--brand-green-raw); }
-.trendDown { background: rgba(232, 67, 147, 0.15); color: var(--trend-down); }
+.trendUp   { background: rgba(88, 198, 157, 0.2);  color: var(--brand-green-raw); box-shadow: 0 0 8px rgba(108, 202, 152, 0.3); }
+.trendDown { background: rgba(232, 67, 147, 0.15); color: var(--trend-down); box-shadow: 0 0 8px rgba(232, 67, 147, 0.3); }
 .trendSame { background: var(--bar-bg); color: var(--text-artist); }
 
 /* Track cell */
@@ -305,6 +305,32 @@
 
 .artistSep {
   color: var(--text-artist);
+}
+
+.creditSubtext {
+  color: var(--text-muted);
+  font-size: 0.72em;
+  margin-top: 2px;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.showCreditsLink {
+  background: none;
+  border: none;
+  color: var(--primary);
+  font-size: 0.72em;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  text-decoration: underline dotted;
+  display: inline;
+}
+
+.showCreditsLink:hover {
+  color: var(--accent-light);
 }
 
 .explicit {
@@ -388,15 +414,10 @@
 .popBar {
   display: block;
   height: 100%;
-  background: var(--primary);
+  background: linear-gradient(90deg, rgba(88, 198, 157, 0.7) 0%, var(--primary) 100%);
   border-radius: 3px;
-  transform-origin: left;
-  animation: popBarGrow 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-}
-
-@keyframes popBarGrow {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
+  width: var(--bar-width);
+  animation: fillBar 0.6s ease-out forwards;
 }
 
 /* No results */
@@ -405,4 +426,30 @@
   padding: 36px;
   color: var(--text-artist);
   font-size: 0.9em;
+}
+
+/* Data badges */
+.yearBadge {
+  font-size: 0.7em;
+  color: var(--text-muted);
+  background: var(--bar-bg);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 5px;
+  font-weight: 400;
+}
+
+.followerBadge {
+  font-size: 0.7em;
+  color: var(--text-muted);
+  background: var(--bar-bg);
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 5px;
+  font-weight: 400;
+}
+
+/* Hidden gem row highlight */
+.hiddenGem {
+  border-left: 3px solid var(--primary);
 }

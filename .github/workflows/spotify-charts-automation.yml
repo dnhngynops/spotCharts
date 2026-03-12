@@ -24,6 +24,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ── Python pipeline ──────────────────────────────────────────────────
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -126,7 +128,6 @@ jobs:
         if: always()
         run: |
           echo "=== Debugging: Checking collected track data ==="
-          # Find the latest dashboard and extract some track info
           DASHBOARD=$(ls -t output/spotify_charts_dashboard_*.html 2>/dev/null | head -1)
           if [ -f "$DASHBOARD" ]; then
             echo "Dashboard file: $DASHBOARD"
@@ -158,39 +159,45 @@ jobs:
           echo "Reports generated and uploaded to Google Drive"
           echo "Email notification sent"
 
+      # ── React dashboard build ────────────────────────────────────────────
+      # Runs after the Python pipeline so data.json (Phase 2+) is available
+      # before the Vite build copies it into the dist bundle.
+
+      - name: Set up Node.js
+        if: success()
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        if: success()
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build React dashboard
+        if: success()
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: npm run build
+        working-directory: frontend
+
+      # ── GitHub Pages deployment ──────────────────────────────────────────
+
       - name: Prepare dashboard for GitHub Pages
         if: success()
         run: |
-          # Create docs directory if it doesn't exist
           mkdir -p docs
-          
-          # List all HTML files in output directory for debugging
-          echo "Listing files in output directory:"
-          ls -la output/ 2>/dev/null || echo "Output directory does not exist"
-          
-          # Find the latest dashboard HTML file
-          echo "Searching for dashboard files..."
-          LATEST_DASHBOARD=$(ls -t output/spotify_charts_dashboard_*.html 2>/dev/null | head -1)
-          
-          if [ -f "$LATEST_DASHBOARD" ]; then
-            # Copy dashboard to docs/index.html for GitHub Pages
-            cp "$LATEST_DASHBOARD" docs/index.html
-            echo "✅ Dashboard copied to docs/index.html"
-            echo "Dashboard file: $LATEST_DASHBOARD"
-            echo "File size: $(du -h docs/index.html | cut -f1)"
-            
-            # Verify the copy was successful
-            if [ -f "docs/index.html" ]; then
-              echo "✅ Verification: docs/index.html exists"
-              echo "First 100 characters: $(head -c 100 docs/index.html)"
-            else
-              echo "❌ ERROR: Copy failed - docs/index.html does not exist"
-              exit 1
-            fi
+
+          # Copy the React build output (frontend/dist/) to docs/
+          if [ -d "frontend/dist" ]; then
+            cp -r frontend/dist/. docs/
+            echo "✅ React build copied to docs/"
+            echo "Build size: $(du -sh docs/ | cut -f1)"
           else
-            echo "❌ ERROR: No dashboard HTML file found in output/"
-            echo "Expected pattern: output/spotify_charts_dashboard_*.html"
-            echo "This step will fail to ensure deployment doesn't proceed without dashboard"
+            echo "❌ ERROR: frontend/dist not found — React build may have failed"
             exit 1
           fi
 
@@ -199,7 +206,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/index.html
+          git add docs/
           if git diff --staged --quiet; then
             echo "No changes to commit (dashboard already up to date)"
           else

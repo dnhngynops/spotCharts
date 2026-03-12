@@ -4,6 +4,107 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [3.7.0] - 2026-03-10
+
+### Changed — React Dashboard: Live Supabase Data Source
+
+Rewired the React dashboard to pull all current-run data directly from Supabase instead of fetching a static `frontend/public/data.json` snapshot. The `data.json` file is no longer required at runtime.
+
+#### `frontend/src/lib/supabaseClient.ts`
+
+- **`fetchDashboardData()`** — new exported async function. Queries the latest completed scheduled `playlist_scrapes` row, then fetches all `playlist_songs` with nested `songs`, `albums`, `playlists` joins in a single Supabase call. Resolves `song_credits` (artists) and `song_genres` separately, then assembles a full `RunData` object — mirroring the shape previously produced by the Python pipeline and baked into `data.json`.
+- **`buildAnalytics()`** — private helper replicating all 7 Python pipeline analytics aggregations in TypeScript: `summary`, `top_artists`, `multi_playlist_artists`, `chart_overlap` (USA vs Global comparison + multi-chart tracks), `popularity_stats`, `explicit_stats`, `genre_stats`, `playlist_stats`.
+- **Performance**: Pre-built `spotifyIdToRows: Map<string, rows[]>` lookup eliminates O(n²) passes in `top_artists` and `multi_chart_tracks` computations.
+- **Safety**: `Math.min/max` spread calls (stack overflow risk at 500+ tracks) replaced with `reduce`-based `minOf`/`maxOf` helpers.
+- **Error messages**: Each Supabase query throw includes the upstream `error.message` for easier debugging.
+
+#### `frontend/src/components/charts/ChartsView.tsx`
+
+- `queryFn` changed from `fetch('./data.json')` to `fetchDashboardData`.
+- `staleTime` set to `1000 * 60 * 60` (1 hr) — matches pipeline cadence.
+
+#### `frontend/src/components/shared/ProfileModal.tsx`
+
+- `queryFn` for the shared `['runData']` cache changed from `fetch('./data.json')` to `fetchDashboardData`.
+
+#### `frontend/src/main.tsx`
+
+- Global `QueryClient` `staleTime` updated to `1000 * 60 * 60` (1 hr) with comment clarifying it matches the daily pipeline cadence.
+
+#### Deployment note
+
+New Supabase tables queried by the anon key at runtime: `playlists`, `albums`, `song_credits`, `credits`, `song_genres`, `genres`. Ensure `SELECT` is granted to the `anon` role for these tables in the Supabase dashboard (Row Level Security).
+
+---
+
+## [3.6.0] - 2026-03-09
+
+### Changed — React Dashboard: CSS Parity, A&R Analytics, UI/UX Polish (v3.6.0 Sprint)
+
+Full sprint across three parallel tracks: CSS variable parity, new A&R data surfaces, and micro-interaction polish.
+
+#### Theme Tokens (`frontend/src/index.css`, `frontend/src/theme.ts`)
+
+- **3 new component-scoped tokens** — `--row-hover` (`rgba(255,255,255,0.03)`), `--row-divider` (`rgba(255,255,255,0.05)`), `--stat-card-bg` (`rgba(0,0,0,0.2)`) added to `:root` and mirrored in `theme.ts`.
+- **Keyframes** — Added `@keyframes shimmer` (skeleton pulse) and `@keyframes fillBar` (bar fill from 0 → `--bar-width` custom property).
+
+#### TracksTable (`frontend/src/components/charts/TracksTable.tsx`, `TracksTable.module.css`)
+
+- **Release year badge** — Parsed from `release_date`, shown next to album name as a small muted badge.
+- **Follower tier badge** — `<1M` / `1M–5M` / `5M+` shown next to artist name from `artist_followers` field.
+- **Hidden Gems highlight** — Rows where `best_position ≤ 20 && popularity < 50` receive a teal left border and tooltip ("High chart position, low mainstream popularity — early signal"). Works on both all-tracks and per-playlist views.
+- **Popularity bar animation** — Bar width set via `--bar-width` CSS custom prop; animates from 0 on initial render via `fillBar`. Fill is a `linear-gradient` from `rgba(88,198,157,0.7)` to `var(--primary)`.
+- **Trend badge glows** — Up badges: `box-shadow: 0 0 8px rgba(108,202,152,0.3)`; down badges: `box-shadow: 0 0 8px rgba(232,67,147,0.3)`.
+- **Album thumbnail hover** — `transform: scale(1.08) translateY(-2px)` on row hover.
+- **CSS parity** — Row hover bg → `var(--row-hover)`; header border → `var(--border-divider)`; row border → `var(--row-divider)`.
+
+#### ChartOverlap (`frontend/src/components/charts/ChartOverlap.module.css`)
+
+- **Stat card bg** — Changed from `var(--bar-bg)` to `var(--stat-card-bg)`.
+- **Stat card spacing** — Gap increased to `15px`; padding changed to `15px` uniform.
+- **Stat label** — Removed `text-transform: uppercase`; set `font-size: 0.85em`.
+
+#### ProfileModal (`frontend/src/components/shared/ProfileModal.tsx`, `ProfileModal.module.css`)
+
+- **Skeleton loaders** — Loading state renders 4 skeleton cards in the stats grid with shimmer animation instead of a spinner.
+- **Staggered entrance** — Stat cards animate in via `statFadeIn` with 50ms increments per `nth-child` after data loads.
+- **CSS parity** — Stat card bg → `var(--stat-card-bg)`; stats grid gap → `16px`; stat padding → `12px` uniform.
+
+#### ArtistMomentum (`frontend/src/components/charts/ArtistMomentum.tsx`) — new component
+
+- Top-10 artists ranked by chart appearances this week, with week-over-week delta (▲N / ▼N / NEW), follower tier badge, and graceful empty state when Supabase is unavailable.
+
+#### TopArtistsList (`frontend/src/components/charts/TopArtistsList.tsx`)
+
+- **Follower tier inline** — Displays `<1M` / `1M–5M` / `5M+` badge next to each artist; follower count derived from `all_tracks` in `ChartsView` via `followerMap`.
+- **Streamlined UX** — Removed expandable playlist sub-dropdown; replaced with compact "X tracks" badge + "View Profile →" cue.
+
+#### ExplicitStats (`frontend/src/components/charts/ExplicitStats.tsx`, `ExplicitStats.module.css`)
+
+- **Compacted layout** — Replaced per-playlist card grid with a single compact summary row (overall % + inline per-playlist breakdown). Freed space reallocated to higher-value sections.
+
+#### SummaryCards (`frontend/src/components/charts/SummaryCards.tsx`, `SummaryCards.module.css`)
+
+- **Skeleton loader** — Loading state renders a pulsing shimmer bar instead of `"…"`.
+- **Hover tint** — Cards use `color-mix(in srgb, var(--primary) 8%, transparent)` on hover.
+
+#### CollapsibleList (`frontend/src/components/charts/CollapsibleList.module.css`)
+
+- **CSS parity** — Item border → `var(--border-subtle)`.
+- **Hover polish** — Row hover bg increased to `rgba(255,255,255,0.08)`; rank number tints teal on hover.
+- **Smooth dropdown** — Switched from `display:none/flex` to `max-height` transition (`0 → 500px`, `0.2s ease-out`) for smooth expand/collapse.
+
+#### Sidebar (`frontend/src/components/layout/Sidebar.module.css`)
+
+- **Active nav left border** — Active item gets `border-left: 3px solid var(--primary)` with `padding-left` compensated to prevent layout shift.
+
+#### Pipeline (`src/apps/charts/generator.py`)
+
+- **`best_position` field** — All-tracks deduplicated output now includes `best_position = min(positions)`, enabling Hidden Gems detection in the React frontend.
+- **Dead code removed** — Removed unused `popularity_stats['top_tracks']` and `playlist_stats[...]['top_track']` from JSON output path (`_calculate_playlist_analytics`'s `top_track` preserved for Jinja2 path).
+
+---
+
 ## [3.5.2] - 2026-03-09
 
 ### Changed — React Dashboard UI/UX Polish

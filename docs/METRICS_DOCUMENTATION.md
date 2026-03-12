@@ -184,9 +184,32 @@ Dashboard uses tab-based navigation: "All Tracks" tab plus one tab per playlist.
 
 ---
 
+---
+
+## Trend Badges (React Dashboard — `useTrendData` hook)
+
+Trend badges appear next to each track in the All Tracks table and per-playlist tabs. They are computed live from Supabase on page load, not baked into the HTML.
+
+| Badge | Meaning | Condition |
+|-------|---------|-----------|
+| `NEW` | First appearance on any chart | Track has only 1 distinct chart week in Supabase history |
+| `▲N` | Moved up N positions | Position improved since prior chart week |
+| `▼N` | Moved down N positions | Position dropped since prior chart week |
+| `◆` | No change | Same position as prior chart week |
+| *(none)* | No Supabase history | Track exists in `data.json` but has no scheduled scrape record |
+
+**Chart week definition**: Friday–Thursday. Multiple scrapes within the same Friday week collapse into one (highest `scrape_id` wins for position). This prevents multiple same-week runs from inflating `weeksOnChart`.
+
+**Data source**: `playlist_songs` joined to `playlist_scrapes WHERE scrape_type = 'scheduled'`. Manual local runs (`scrape_type = 'manual'`) are excluded from trend calculations to prevent development runs from contaminating chart history.
+
+**Tooltip**: Hovering a badge shows `"N week(s) on chart · Peak: #P"`.
+
+**Implementation**: `frontend/src/hooks/useTrendData.ts` — bulk-fetches history for all displayed track IDs in one query set, returns a `Map<spotifyTrackId, TrendInfo>`.
+
+---
+
 ## Future Metrics (Potential Additions)
 
 - **Audio Features**: Tempo, energy, danceability, valence from Spotify Audio Features API
-- **New Entries**: Tracks not in previous week's report (requires historical tracking)
-- **Trend Velocity**: Week-over-week position movement
 - **Artist Growth**: Follower count changes over time
+- **Re-entry detection**: Distinguish tracks returning to chart after a gap from first-time entries

@@ -1,0 +1,88 @@
+.section {
+  margin-bottom: 40px;
+}
+
+.sectionTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--accent-light);
+  margin-bottom: 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 20px;
+}
+
+.bucket {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.label {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.barContainer {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.bar {
+  width: 60%;
+  background: linear-gradient(180deg, var(--primary) 0%, var(--accent-light) 100%);
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8px;
+  transition: height 0.3s ease;
+  min-height: 24px;
+}
+
+.barLabel {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.stats {
+  width: 100%;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statValue {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--primary);
+}

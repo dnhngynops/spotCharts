@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import type { Track, TrendInfo } from '../../lib/types'
 import { useModal } from '../../contexts/ModalContext'
 import styles from './TracksTable.module.css'
@@ -13,6 +13,50 @@ interface Props {
 
 type SortKey = 'position' | 'track' | 'album' | 'duration' | 'popularity'
 type SortDir = 'asc' | 'desc'
+
+const PRIMARY_CREDIT_ROLES = new Set(['Producer', 'Songwriter'])
+
+function TrackCreditSubtext({ artists }: { artists: { name: string; role?: string }[] }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const creditsByRole: Record<string, string[]> = {}
+  artists.forEach(a => {
+    if (a.role && a.role !== 'Artist') {
+      if (!creditsByRole[a.role]) creditsByRole[a.role] = []
+      creditsByRole[a.role].push(a.name)
+    }
+  })
+
+  const primaryParts = Object.entries(creditsByRole)
+    .filter(([role]) => PRIMARY_CREDIT_ROLES.has(role))
+    .map(([role, names]) => `${role}: ${names.join(', ')}`)
+
+  const secondaryParts = Object.entries(creditsByRole)
+    .filter(([role]) => !PRIMARY_CREDIT_ROLES.has(role))
+    .map(([role, names]) => `${role}: ${names.join(', ')}`)
+
+  if (primaryParts.length === 0 && secondaryParts.length === 0) return null
+
+  return (
+    <small className={styles.creditSubtext}>
+      {primaryParts.join(' · ')}
+      {secondaryParts.length > 0 && (
+        <>
+          {expanded ? (
+            <>
+              {primaryParts.length > 0 ? ' · ' : ''}{secondaryParts.join(' · ')}{' '}
+              <button className={styles.showCreditsLink} onClick={() => setExpanded(false)}>less</button>
+            </>
+          ) : (
+            <button className={styles.showCreditsLink} onClick={() => setExpanded(true)}>
+              {primaryParts.length > 0 ? ' ' : ''}+{secondaryParts.length} more
+            </button>
+          )}
+        </>
+      )}
+    </small>
+  )
+}
 
 function formatDuration(ms: number): string {
   const totalSec = Math.floor(ms / 1000)
@@ -264,9 +308,23 @@ export default function TracksTable({
               const trend = trendData.get(trackId)
               const pop = track.popularity ?? 0
               const rank = track.rank ?? track.position
+              const releaseYear = track.release_date?.slice(0, 4)
+
+              const followerTier = track.artist_followers == null ? null
+                : track.artist_followers < 1_000_000 ? '<1M'
+                : track.artist_followers < 5_000_000 ? '1M–5M'
+                : '5M+'
+
+              const isHiddenGem = track.rank != null
+                ? (track.best_position != null && track.best_position <= 20 && (track.popularity ?? 0) < 50)
+                : (track.position != null && track.position <= 20 && (track.popularity ?? 0) < 50)
 
               return (
-                <tr key={`${trackId}-${i}`} className={styles.row}>
+                <tr
+                  key={`${trackId}-${i}`}
+                  className={`${styles.row}${isHiddenGem ? ` ${styles.hiddenGem}` : ''}`}
+                  title={isHiddenGem ? 'High chart position, low mainstream popularity — early signal' : undefined}
+                >
                   {/* Position + trend */}
                   <td className={styles.posCell}>
                     <div className={styles.posWrapper}>
@@ -304,7 +362,7 @@ export default function TracksTable({
                           {track.explicit && <span className={styles.explicit}>E</span>}
                         </div>
                         <div className={styles.artistList}>
-                          {(track.artists || []).map((a, ai) => (
+                          {(track.artists || []).filter(a => a.role === 'Artist' || !a.role).map((a, ai) => (
                             <span key={ai}>
                               {ai > 0 && <span className={styles.artistSep}>, </span>}
                               {a.id
@@ -322,7 +380,9 @@ export default function TracksTable({
                                 : <span>{a.name}</span>}
                             </span>
                           ))}
+                          {followerTier && <span className={styles.followerBadge}>{followerTier}</span>}
                         </div>
+                        <TrackCreditSubtext artists={track.artists || []} />
                       </div>
                     </div>
                   </td>
@@ -342,6 +402,7 @@ export default function TracksTable({
                         </a>
                       )
                       : <span className={styles.albumText}>{track.album}</span>}
+                    {releaseYear && <span className={styles.yearBadge}>{releaseYear}</span>}
                   </td>
 
                   {/* Duration */}
@@ -356,7 +417,7 @@ export default function TracksTable({
                       <span className={styles.popBarBg}>
                         <span
                           className={styles.popBar}
-                          style={{ width: `${Math.min(100, pop)}%` }}
+                          style={{ '--bar-width': `${Math.min(100, pop)}%` } as React.CSSProperties}
                         />
                       </span>
                     </div>

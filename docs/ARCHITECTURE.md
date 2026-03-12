@@ -60,6 +60,9 @@ The system follows a **Selenium-Primary + API Enrichment** architecture:
         │  Write order (each step upserts by Spotify ID):
         ├── 1. playlists          — upsert playlist metadata
         ├── 2. playlist_scrapes   — insert run record (→ scrape_id)
+        │                           scrape_type='scheduled' in CI (GITHUB_ACTIONS set)
+        │                           scrape_type='manual' for local dev runs
+        │                           Frontend trend badges filter scheduled only
         ├── 3. credits            — upsert artists by spotify_id
         ├── 4. credit_genres      — upsert artist ↔ genre links
         ├── 5. albums             — upsert albums (+ all_tracks JSONB)
@@ -318,6 +321,70 @@ Your Main Folder/
 │   └── ...
 ├── 2026-01-12/
 │   └── ...
+```
+
+---
+
+---
+
+## React Dashboard (`frontend/`)
+
+A Vite + React + TypeScript single-page application deployed to GitHub Pages alongside the static HTML dashboard. It provides an interactive A&R analytics view built on live Supabase data.
+
+### Data Sources
+
+| Data | Source | When fetched |
+|---|---|---|
+| Current-run tracks + analytics | Supabase (live query via `fetchDashboardData`) | Page load, cached 1 hr |
+| Trend badges (▲▼NEW) | Supabase (live query via `useTrendData`) | Page load, cached 1 hr |
+| Artist / Track / Album profiles | Supabase (on-demand via `ProfileModal`) | On user click |
+
+**As of v3.7.0**, `data.json` is no longer fetched at runtime. All current-run data is reconstructed from the live Supabase schema by `fetchDashboardData()` in `frontend/src/lib/supabaseClient.ts`.
+
+### Query Flow (`fetchDashboardData`)
+
+```
+1. playlist_scrapes (latest completed scheduled row)
+        │
+        ▼
+2. playlist_songs  ──► songs ──► albums
+   for scrape_id        │
+                        └──► playlists
+        │
+        ▼
+3. song_credits ──► credits      (artists for each song)
+4. song_genres  ──► genres       (genres for each song)
+        │
+        ▼
+5. buildAnalytics()  →  RunData
+   - summary, top_artists, multi_playlist_artists
+   - chart_overlap (USA vs Global + multi-chart tracks)
+   - popularity_stats, explicit_stats, genre_stats, playlist_stats
+```
+
+### Key Files
+
+| File | Purpose |
+|---|---|
+| `frontend/src/lib/supabaseClient.ts` | Supabase client + `fetchDashboardData()` / `buildAnalytics()` |
+| `frontend/src/lib/types.ts` | `RunData`, `Track`, `Analytics`, profile types |
+| `frontend/src/hooks/useTrendData.ts` | Trend badge query (filters `scrape_type='scheduled'`) |
+| `frontend/src/components/charts/ChartsView.tsx` | Root chart view; owns `['runData']` query |
+| `frontend/src/components/shared/ProfileModal.tsx` | Profile popups; reads `['runData']` from React Query cache |
+| `frontend/src/main.tsx` | Router + `QueryClient` (1 hr staleTime) |
+
+### Supabase RLS Requirements
+
+The anon key must have `SELECT` on: `playlist_scrapes`, `playlist_songs`, `songs`, `albums`, `playlists`, `song_credits`, `credits`, `song_genres`, `genres`.
+
+### Local Development
+
+```bash
+# Requires frontend/.env.local with:
+# VITE_SUPABASE_URL=...
+# VITE_SUPABASE_ANON_KEY=...
+
+cd frontend && npm run dev   # → http://localhost:5173
 ```
 
 ---

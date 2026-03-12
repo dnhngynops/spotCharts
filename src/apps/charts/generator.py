@@ -21,6 +21,59 @@ class DashboardGenerator:
         """Initialize dashboard generator with Jinja2 environment"""
         self.env = get_env()
 
+    def generate_data_json(
+        self,
+        all_tracks: List[Dict],
+        output_path: str,
+        run_id: str = ''
+    ) -> str:
+        """
+        Serialize pipeline analytics to a JSON file for the React dashboard.
+
+        Writes the same data that generate_dashboard() passes to Jinja2,
+        serialized as JSON so the React app can fetch it at runtime.
+        Shape mirrors the RunData TypeScript interface in frontend/src/lib/types.ts.
+
+        Args:
+            all_tracks: List of all track dictionaries from all playlists
+            output_path: Path where data.json should be saved
+            run_id: Optional run identifier (becomes current_run_id in the JSON)
+
+        Returns:
+            Path to the generated JSON file
+        """
+        analytics = self._calculate_analytics(all_tracks)
+        tracks_by_playlist = {
+            pl: [self._normalize_track_for_json(t) for t in tracks]
+            for pl, tracks in self._group_by_playlist(all_tracks).items()
+        }
+        sorted_all_tracks = [
+            self._normalize_track_for_json(t)
+            for t in self._build_deduplicated_ranked_all_tracks(all_tracks)
+        ]
+
+        playlist_urls = {}
+        for track in all_tracks:
+            pl_name = track.get('playlist', '')
+            pl_id = track.get('playlist_id', '')
+            if pl_name and pl_id and pl_name not in playlist_urls:
+                playlist_urls[pl_name] = f'https://open.spotify.com/playlist/{pl_id}'
+
+        payload = {
+            'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'),
+            'current_run_id': run_id,
+            'analytics': analytics,
+            'tracks_by_playlist': tracks_by_playlist,
+            'all_tracks': sorted_all_tracks,
+            'playlist_urls': playlist_urls,
+        }
+
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, default=str)
+
+        return output_path
+
     def generate_dashboard(
         self,
         all_tracks: List[Dict],
@@ -370,12 +423,6 @@ class DashboardGenerator:
                     'min': min(pops)
                 }
 
-        sorted_by_pop = sorted(
-            [t for t in tracks if t.get('popularity')],
-            key=lambda x: -x.get('popularity', 0)
-        )
-        stats['top_tracks'] = sorted_by_pop[:10]
-
         return stats
 
     def _analyze_explicit(self, tracks: List[Dict]) -> Dict:
@@ -416,7 +463,6 @@ class DashboardGenerator:
                 'track_count': len(playlist_tracks),
                 'explicit_count': sum(1 for t in playlist_tracks if t.get('explicit')),
                 'avg_popularity': sum(pops) / len(pops) if pops else 0,
-                'top_track': max(playlist_tracks, key=lambda x: x.get('popularity') or 0) if playlist_tracks else None
             }
 
         return stats
@@ -512,6 +558,13 @@ class DashboardGenerator:
 
         return analytics
 
+    def _normalize_track_for_json(self, track: Dict) -> Dict:
+        """Map Python pipeline field names to React-expected aliases."""
+        row = dict(track)
+        if row.get('album_image') and not row.get('album_image_url'):
+            row['album_image_url'] = row['album_image']
+        return row
+
     def _group_by_playlist(self, tracks: List[Dict]) -> Dict[str, List[Dict]]:
         """Group tracks by playlist name"""
         grouped = defaultdict(list)
@@ -568,6 +621,7 @@ class DashboardGenerator:
             num_charts = len(appearances)
             positions = [t.get('position') for t in appearances if t.get('position') and t.get('position') > 0]
             avg_position = sum(positions) / len(positions) if positions else 50
+            best_position = min(positions) if positions else None
             track_pop = max((t.get('popularity') or 0) for t in appearances)
             playlists_seen = [str(t.get('playlist', '')).strip() for t in appearances if t.get('playlist')]
             playlists_seen = [p for p in playlists_seen if p]
@@ -586,6 +640,7 @@ class DashboardGenerator:
 
             row = dict(canonical)
             row['position'] = None
+            row['best_position'] = best_position
             row['_composite'] = composite
             row['_num_charts'] = num_charts
             row['_avg_position'] = avg_position

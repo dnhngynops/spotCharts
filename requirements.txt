@@ -18,3 +18,4 @@ weasyprint>=60.0
 # Supabase (intermediate data storage + historical analytics)
 supabase>=2.0.0
 
+anthropic>=0.84.0

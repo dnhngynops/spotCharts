@@ -83,8 +83,9 @@ def main():
             print("\n1.5. Saving tracks to Supabase...")
             try:
                 supabase = SupabaseClient()
-                supabase.save_run(timestamp, tracks)
-                print(f"   ✓ Saved {len(tracks)} chart entries to Supabase (run: {timestamp})")
+                scrape_type = 'scheduled' if os.getenv('GITHUB_ACTIONS') else 'manual'
+                supabase.save_run(timestamp, tracks, scrape_type=scrape_type)
+                print(f"   ✓ Saved {len(tracks)} chart entries to Supabase (run: {timestamp}, type: {scrape_type})")
             except Exception as e:
                 print(f"   Warning: Supabase write failed: {e}")
                 print("   Continuing without Supabase persistence...")
@@ -110,15 +111,14 @@ def main():
 
         print(f"   Grouped tracks into {len(tracks_by_playlist)} playlists")
 
-        # Generate HTML dashboard with cross-playlist analytics
-        if config.REPORT_CONFIG['formats']['html']:
-            print("   Generating HTML dashboard with analytics...")
-            dashboard_generator = DashboardGenerator()
-            html_filename = f'spotify_charts_dashboard_{timestamp}.html'
-            html_file_path = os.path.join(output_dir, html_filename)
-            dashboard_generator.generate_dashboard(tracks, html_file_path, run_id=timestamp)
-            generated_files.append(html_file_path)
-            print(f"   ✓ HTML dashboard saved to: {html_file_path}")
+        # Write data.json for the React dashboard (always runs)
+        print("   Generating data.json for React dashboard...")
+        dashboard_generator = DashboardGenerator()
+        data_json_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 'frontend', 'public', 'data.json'
+        )
+        dashboard_generator.generate_data_json(tracks, data_json_path, run_id=timestamp)
+        print(f"   ✓ data.json written to: {data_json_path}")
 
         # Generate separate PDF for each playlist if configured
         if config.REPORT_CONFIG['formats']['pdf']:

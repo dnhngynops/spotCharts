@@ -1,0 +1,121 @@
+/* ── Milk & Honey LA design tokens ─────────────────────────────────────── */
+/*
+ * Source of truth: spotify-dashboard-figma-spec.html (Figma Spec v1)
+ * Import via Tokens Studio for Figma (spotify-dashboard-tokens.json)
+ *
+ * BACKGROUND
+ *   --bg              Page body
+ *   --surface         Cards, section panels
+ *   --sidebar-bg      Sidebar background
+ *   --bar-bg          Progress/popularity bar track
+ *   --header-top      Dashboard header gradient start
+ *   --header-mid      Dashboard header gradient mid
+ *
+ * TEXT
+ *   --text-primary    Body text  (#C8D0D8)
+ *   --text-bright     Track names, emphasis  (#E8EDF2)
+ *   --text-muted      Secondary / meta  (#8C96A1)
+ *
+ * BRAND / ACCENT
+ *   --primary         Primary teal accent  (#58C69D)
+ *   --accent-light    Heading teal  (#6BD1A6)
+ *   --brand-green-raw Active nav items, trend-up/new badges  (#6CCA98)
+ *
+ * SEMANTIC
+ *   --danger          Explicit content bar  (#E74C3C)
+ *   --trend-down      Trending-down badge  (#E84393)
+ *
+ * BORDERS
+ *   --border          Input / hard borders  (#313C45)
+ *   --border-subtle   Section edges  (rgba(255,255,255,0.08))
+ *   --border-divider  Row dividers  (rgba(255,255,255,0.10))
+ *
+ * RADIUS SCALE  3px·sm  4px·md  6px·lg  8px·xl  12px·2xl  20px·pill  999px·full
+ */
+:root {
+  /* Backgrounds */
+  --bg:             #131C25;
+  --surface:        #1E2A36;
+  --sidebar-bg:     #07131D;
+  --bar-bg:         #263342;
+  --header-top:     #1C242B;
+  --header-mid:     #121D26;
+
+  /* Text */
+  --text-primary:   #C8D0D8;
+  --text-bright:    #E8EDF2;
+  --text-muted:     #8C96A1;
+
+  /* Brand — keep legacy aliases for components not yet migrated */
+  --primary:        #58C69D;
+  --accent-light:   #6BD1A6;
+  --brand-green-raw: #6CCA98;
+
+  /* Text aliases (legacy — point to new tokens) */
+  --text-track:     var(--text-bright);
+  --text-artist:    var(--text-muted);
+  --text-secondary: var(--text-primary);
+
+  /* Semantic */
+  --danger:         #E74C3C;
+  --trend-down:     #E84393;
+
+  /* Borders */
+  --border:         #313C45;
+  --border-subtle:  rgba(255,255,255,0.08);
+  --border-divider: rgba(255,255,255,0.10);
+
+  /* Component-specific backgrounds */
+  --row-hover:      rgba(255, 255, 255, 0.03);
+  --row-divider:    rgba(255, 255, 255, 0.05);
+  --stat-card-bg:   rgba(0, 0, 0, 0.2);
+}
+
+/* ── Global reset ───────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Libre Franklin', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 600;
+  color: var(--accent-light);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+code, pre, .mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes fillBar {
+  from { width: 0; }
+  to   { width: var(--bar-width); }
+}

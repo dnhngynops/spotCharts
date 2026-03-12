@@ -43,18 +43,33 @@ TABLE_CONFIG = {
 }
 
 # Milk & Honey LA Theme Colors
+# Source of truth: spotify-dashboard-figma-spec.html (Figma Spec v1)
+# Mirror of frontend/src/index.css :root tokens — keep both in sync.
 SPOTIFY_THEME = {
-    'background': '#131C25',      # Page background
-    'surface': '#1E2A36',         # Card / panel surface
-    'primary': '#58C69D',         # Primary accent green
-    'accent_light': '#6BD1A6',    # Heading color / light accent
-    'accent_dark': '#3B3838',     # Dark secondary accent
-    'text_primary': '#FFFCFC',    # Body text
-    'text_secondary': '#C8D0D8',  # Cool off-white
-    'text_track': '#E8EDF2',      # Track name color
-    'text_artist': '#8C96A1',     # Artist name color (cool gray)
-    'border': '#313C45',          # Dark border
-    'bar_background': '#263342',  # Popularity bar background
+    # Backgrounds
+    'background':    '#131C25',   # --bg          Page body
+    'surface':       '#1E2A36',   # --surface      Cards, section panels
+    'sidebar_bg':    '#07131D',   # --sidebar-bg   Sidebar
+    'bar_background':'#263342',   # --bar-bg       Progress/popularity bar track
+    'header_top':    '#1C242B',   # --header-top   Dashboard header gradient start
+    'header_mid':    '#121D26',   # --header-mid   Dashboard header gradient mid
+    # Text
+    'text_primary':  '#C8D0D8',   # --text-primary  Body text
+    'text_bright':   '#E8EDF2',   # --text-bright   Track names, emphasis
+    'text_muted':    '#8C96A1',   # --text-muted    Secondary / meta
+    # Brand / Accent
+    'primary':       '#58C69D',   # --primary        Primary teal accent
+    'accent_light':  '#6BD1A6',   # --accent-light   Heading teal
+    'brand_green_raw':'#6CCA98',  # --brand-green-raw Active nav, trend-up badges
+    # Semantic
+    'danger':        '#E74C3C',   # --danger         Explicit content bar
+    'trend_down':    '#E84393',   # --trend-down     Trending-down badge
+    # Borders
+    'border':        '#313C45',   # --border         Input / hard borders
+    # Legacy aliases used by Jinja2 templates — do not remove
+    'text_track':    '#E8EDF2',   # = text_bright
+    'text_artist':   '#8C96A1',   # = text_muted
+    'text_secondary':'#C8D0D8',   # = text_primary
 }
 
 # Genius API (song credits: writers, producers, engineers)

@@ -1,0 +1,160 @@
+/* Shared styles for TopArtistsList + GenresList */
+
+.section {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 30px;
+}
+
+.sectionTitle {
+  font-size: 1.71em;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--primary);
+  font-family: 'Libre Franklin', sans-serif;
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.listItem {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.listItem:last-child {
+  border-bottom: none;
+}
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 6px;
+  min-height: 48px;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.itemRow:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.itemRow:hover .rank {
+  color: var(--primary);
+}
+
+.rank {
+  font-size: 0.85em;
+  color: var(--text-artist);
+  min-width: 30px;
+  font-weight: 600;
+}
+
+.name {
+  flex: 1;
+  color: var(--text-track);
+  font-size: 0.95em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameLink {
+  color: var(--text-track);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.nameLink:hover {
+  color: var(--primary);
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.chartCount {
+  font-size: 0.8em;
+  color: var(--text-artist);
+}
+
+.badge {
+  background: rgba(88, 198, 157, 0.2);
+  border: 1px solid rgba(88, 198, 157, 0.3);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.78em;
+  color: var(--primary);
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.badge:hover,
+.badgeOpen {
+  background: var(--primary);
+  color: var(--sidebar-bg);
+  border-color: var(--primary);
+}
+
+/* Dropdown */
+.dropdown {
+  list-style: none;
+  padding: 0 0 0 32px;
+  gap: 4px;
+  flex-direction: column;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease-out, padding 0.2s ease-out;
+  display: flex;
+}
+
+.dropdownOpen {
+  max-height: 500px;
+  padding: 6px 0 12px 32px;
+}
+
+.dropdownItem {
+  font-size: 0.85em;
+  color: var(--text-artist);
+  padding: 3px 6px;
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+
+.dropdownItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dropdownTrackName a {
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.dropdownTrackName a:hover {
+  color: var(--primary);
+}
+
+.dropdownMeta {
+  color: var(--text-artist);
+}
+
+/* TopArtistsList additions */
+.followerTier {
+  font-size: 0.72em;
+  color: var(--text-muted);
+  background: var(--bar-bg);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}

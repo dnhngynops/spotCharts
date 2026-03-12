@@ -1,0 +1,60 @@
+.section {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 24px 30px;
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--primary);
+  font-family: 'Libre Franklin', sans-serif;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.overallPct {
+  font-size: 2em;
+  font-weight: 700;
+  color: var(--text-bright);
+  line-height: 1;
+}
+
+.overallLabel {
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.breakdownRow {
+  font-size: 0.85em;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  display: flex;
+  gap: 2px;
+}
+
+.breakdownItem {
+  white-space: nowrap;
+}
+
+.breakdownSep {
+  color: var(--border);
+}
+
+.breakdownName {
+  color: var(--text-muted);
+}
+
+.breakdownPct {
+  color: var(--text-secondary);
+  font-weight: 600;
+}

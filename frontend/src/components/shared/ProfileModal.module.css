@@ -225,15 +225,15 @@
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 12px;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
 .modalStat {
-  background: var(--bar-bg);
+  background: var(--stat-card-bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 14px 12px;
+  padding: 12px;
   text-align: center;
   cursor: pointer;
   position: relative;
@@ -814,3 +814,27 @@ details[open] .trackAlbumChevron {
 .miniBar:hover {
   opacity: 0.7;
 }
+
+/* Skeleton loader for stat cards */
+.skeletonCard {
+  height: 64px;
+  border-radius: 8px;
+  background: var(--bar-bg);
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Entrance animation for stat cards */
+@keyframes statFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.modalStat {
+  animation: statFadeIn 0.3s ease forwards;
+  opacity: 0;
+}
+
+.modalStat:nth-child(1) { animation-delay: 0ms; }
+.modalStat:nth-child(2) { animation-delay: 50ms; }
+.modalStat:nth-child(3) { animation-delay: 100ms; }
+.modalStat:nth-child(4) { animation-delay: 150ms; }

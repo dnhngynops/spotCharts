@@ -1,0 +1,173 @@
+/* ── Sidebar shell ──────────────────────────────────────────────────────── */
+.sidebar {
+  width: 220px;
+  min-width: 220px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.25s ease, min-width 0.25s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 100;
+}
+
+.collapsed {
+  width: 60px;
+  min-width: 60px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 60px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.sidebarToggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.sidebarToggle:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebarLogo {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 0.15s, width 0.15s;
+  margin-left: 10px;
+}
+
+.sidebarLogo img {
+  height: 28px;
+  width: auto;
+  display: block;
+}
+
+.collapsed .sidebarLogo {
+  opacity: 0;
+  width: 0;
+  margin-left: 0;
+}
+
+/* ── Nav body ───────────────────────────────────────────────────────────── */
+.sidebarNav {
+  flex: 1;
+  padding: 8px 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.navSectionLabel {
+  font-size: 0.68em;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.25);
+  padding: 14px 18px 4px;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.collapsed .navSectionLabel {
+  opacity: 0;
+}
+
+/* ── Nav item ───────────────────────────────────────────────────────────── */
+.navItem {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  position: relative;
+  gap: 12px;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-size: inherit;
+  /* <a> override */
+  text-decoration: none;
+}
+
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.navItem.active {
+  color: var(--brand-green-raw);
+  background: rgba(108, 202, 152, 0.1);
+  border-left: 3px solid var(--primary);
+  padding-left: 13px;
+}
+
+.navIcon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navLabel {
+  font-size: 0.88em;
+  font-weight: 500;
+  overflow: hidden;
+  transition: opacity 0.15s;
+}
+
+.collapsed .navLabel {
+  opacity: 0;
+  width: 0;
+}
+
+/* ── Tooltip (collapsed state) ──────────────────────────────────────────── */
+.navItem[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 58px;
+  background: var(--header-top);
+  color: var(--text-bright);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.8em;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 200;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.collapsed .navItem[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+.sidebarFooter {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px 0;
+  flex-shrink: 0;
+}

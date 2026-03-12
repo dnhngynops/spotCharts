@@ -203,14 +203,15 @@ class SupabaseClient:
         logger.info("Supabase fetch: returning %d tracks from scrape_id=%s", len(tracks), scrape_id)
         return tracks
 
-    def save_run(self, run_id: str, tracks: List[Dict]) -> None:
+    def save_run(self, run_id: str, tracks: List[Dict], scrape_type: str = 'scheduled') -> None:
         """
         Persist a complete pipeline run to the v2.0 schema.
 
         Args:
-            run_id:  Unique run identifier (timestamp string from main.py,
-                     e.g. "20260218_143022").
-            tracks:  Fully enriched track list produced by SpotifyClient.
+            run_id:      Unique run identifier (timestamp string from main.py,
+                         e.g. "20260218_143022").
+            tracks:      Fully enriched track list produced by SpotifyClient.
+            scrape_type: 'scheduled' for CI/cron runs, 'manual' for local dev runs.
         """
         if not tracks:
             logger.warning("Supabase: save_run called with empty track list — skipping.")
@@ -257,7 +258,7 @@ class SupabaseClient:
         playlist_db_ids = self._upsert_playlists(playlists_seen)
         logger.info("Supabase: %d playlists upserted", len(playlist_db_ids))
 
-        scrape_id = self._insert_scrape(run_id, playlists_seen, tracks)
+        scrape_id = self._insert_scrape(run_id, playlists_seen, tracks, scrape_type)
         logger.info("Supabase: playlist_scrape inserted (scrape_id=%s)", scrape_id)
 
         artist_role_id = self._ensure_role(_ARTIST_ROLE_NAME, 'creative')
@@ -319,12 +320,13 @@ class SupabaseClient:
         run_id: str,
         playlists_seen: Dict[str, str],
         tracks: List[Dict],
+        scrape_type: str = 'scheduled',
     ) -> int:
         """Insert a playlist_scrapes row for this run; return the scrape_id."""
         unique_tracks = len({_extract_track_id(t) for t in tracks if _extract_track_id(t)})
         result = self._client.table('playlist_scrapes').insert({
             'scrape_date': _now(),
-            'scrape_type': 'scheduled',
+            'scrape_type': scrape_type,
             'status': 'completed',
             'total_playlists': len(playlists_seen),
             'total_songs': unique_tracks,

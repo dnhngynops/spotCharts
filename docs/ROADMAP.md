@@ -2,23 +2,46 @@
 
 This document outlines the planned features and enhancements for the Spotify Charts Automation system, specifically tailored for music A&R use cases.
 
-## Current Status (v2.1.0)
+## Current Status (v3.5.0)
 
 ### ✅ Fully Implemented Features
-- **Selenium-Primary Data Collection**: Selenium scraping as primary method, Spotify API for enrichment
-- **100% Collection Accuracy**: All playlists collect exactly 50 tracks (fixed v1.2.1)
-- **Performance Optimized**: 8-9 seconds per playlist with headless browser
-- **Robust Error Handling**: Multiple fallback strategies prevent failures
-- **Genre Collection**: Batch genre fetching from Spotify Artist API (v2.0.0)
-- **Interactive HTML Dashboard**: Analytics dashboard with cross-playlist insights, deployed to GitHub Pages
-- **Playlist Hyperlinks**: Playlist titles and table entries linked to Spotify (v2.1.0)
-- **Dynamic Histograms**: Popularity histogram bins calculated from actual data range (v2.1.0)
-- **Popularity Range Bar**: Visual range indicator with average dot per playlist (v2.1.0)
-- **Separate PDF Reports**: One single-page PDF per playlist with Spotify theming
-- Google Drive upload functionality
-- Email notifications with attachments
-- GitHub Actions automation (weekly scheduling - Thursday 11 PM PST)
-- Configurable playlist and table settings
+
+**Data Collection**
+- Selenium-primary scraping with Spotify API enrichment
+- 100% collection accuracy (50 tracks per playlist)
+- Genre data via Spotify Artist API (~54% coverage)
+- Track popularity, duration, album images, explicit flags
+
+**Backend / Persistence**
+- Supabase (PostgreSQL) as canonical data store — normalized schema v2.0 (`sql/schema.sql`)
+- `SupabaseClient` persists playlists, scrapes, songs, albums, artists, credits, genres, playlist positions per run
+- Genius API integration for writer/producer/engineer credits (`src/integrations/genius_client.py`)
+- Role normalization (`src/utils/role_normalizer.py`) and name normalization (`src/utils/name_normalizer.py`)
+- Entity classifier for person vs company detection (`src/utils/entity_classifier.py`)
+- Company/representation CRUD layer (`src/integrations/representation_client.py`)
+- Three-path credit upsert handling dual unique constraints on `credits` table (v3.3.0)
+
+**Jinja2 HTML Dashboard** (`templates/`)
+- Interactive analytics dashboard deployed to GitHub Pages
+- On-demand Supabase profile fetching (artist/track/album modals, lazy per-playlist analytics)
+- Cross-playlist chart overlap, genre breakdowns, popularity histograms, explicit distribution
+- Per-playlist PDF reports via WeasyPrint
+
+**React Dashboard** (`frontend/`) — Vite + React + TypeScript
+- Full port of Jinja2 dashboard functionality into component-based React app
+- Supabase live queries for trend badges (▲▼NEW) and profile modal data
+- Three rounds of visual parity fixes completed (v3.3.0–v3.5.0); All Tracks tab now closely mirrors Jinja2
+- Album modal: charting track row highlights, popularity distribution mini bar chart
+- All Tracks tab: track/artist/album names are dual-purpose Spotify `<a>` links (modal on click, Spotify on Ctrl/Cmd+click)
+- Popularity and Explicit stats cards: teal hover lift effect, even grid distribution, playlist names hyperlinked to Spotify
+- Filter bar: teal hover on toggle/reset buttons, no browser outline rings
+- Deployed independently at `http://localhost:5173` (dev); production deploy TBD
+- Remaining parity work: per-playlist tabs, ChartOverlap section, ProfileModal, CollapsibleList, Dashboard Header, Summary Cards
+
+**Automation**
+- GitHub Actions workflow (weekly, Thursday 11 PM PST)
+- Google Drive upload + email delivery
+- GitHub Pages deployment of latest Jinja2 dashboard
 
 ### 📊 Data Collection Capabilities
 - Track IDs, names, artists (with URLs), albums
@@ -29,6 +52,7 @@ This document outlines the planned features and enhancements for the Spotify Cha
 - Playlist metadata and playlist IDs (for hyperlinking)
 - **Genre data** (from Artist API, ~54% coverage)
 - Popularity scores, duration, album images (API enrichment)
+- Song credits: writers, producers, engineers via Genius API
 
 ### 📈 Dashboard Analytics
 - Summary cards (tracks, playlists, unique tracks, average popularity, explicit count, unique genres)
@@ -36,9 +60,10 @@ This document outlines the planned features and enhancements for the Spotify Cha
 - Top 20 genres with track count dropdowns (All Tracks tab); top 10 per playlist
 - Popularity stats with range bar and dynamic histogram (labeled axes)
 - USA vs Global comparison with overlay dropdowns
-- Chart overlap detection
+- Chart overlap detection with multi-chart track listings
 - Explicit content distribution
 - Playlist titles hyperlinked to Spotify
+- Artist/track/album profile modals with on-demand Supabase fetching
 
 ---
 
