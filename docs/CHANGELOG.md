@@ -4,6 +4,26 @@ All notable changes to the Spotify Charts automation project.
 
 ---
 
+## [3.7.1] - 2026-03-13
+
+### Fixed — GitHub Pages 404: Deployment Source Misconfiguration
+
+The live site at `https://dnhngynops.github.io/spotCharts/` was returning HTTP 404 on every
+request. Root cause: GitHub Pages was configured to serve from the repository root (`/`),
+but the `deploy-dashboard` CI job commits the React build to `docs/`. Since `index.html`
+only exists in `docs/`, the root served nothing.
+
+#### Changes
+
+- **GitHub Pages source** updated via `gh api` from `path: "/"` to `path: "/docs"` on the
+  `main` branch. GitHub Pages now serves the React SPA from the correct folder.
+- **`docs/GITHUB_ACTIONS_SETUP.md`** — added Step 2 "Configure GitHub Pages" with UI and
+  CLI instructions; added missing Supabase secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+  `SUPABASE_SERVICE_KEY`) and `EMAIL_FROM` to the required secrets table; updated secrets
+  count from 14–15 to 17–18.
+
+---
+
 ## [3.7.0] - 2026-03-10
 
 ### Changed — React Dashboard: Live Supabase Data Source

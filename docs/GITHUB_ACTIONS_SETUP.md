@@ -39,18 +39,53 @@ The workflow is configured to run:
 
 ---
 
-## Step 2: Configure GitHub Secrets
+## Step 2: Configure GitHub Pages
+
+The React dashboard is deployed via the `deploy-dashboard` CI job, which commits the
+built app to the `docs/` folder on the `main` branch. GitHub Pages must be configured
+to serve from that folder — **not the repo root**.
+
+### 2.1 Via GitHub UI
+
+1. Go to your repository on GitHub
+2. Click **Settings** → **Pages** (left sidebar)
+3. Under **Source**, set:
+   - **Branch**: `main`
+   - **Folder**: `/docs`
+4. Click **Save**
+
+### 2.2 Via GitHub CLI (one-time setup)
+
+```bash
+gh api -X PUT repos/YOUR_USERNAME/YOUR_REPO/pages \
+  -f "source[branch]=main" \
+  -f "source[path]=/docs"
+```
+
+### Verify
+
+```bash
+gh api repos/YOUR_USERNAME/YOUR_REPO/pages | jq '.source'
+# Expected: {"branch": "main", "path": "/docs"}
+```
+
+After saving, GitHub Pages rebuilds in ~60 seconds and the dashboard becomes accessible
+at `https://YOUR_USERNAME.github.io/YOUR_REPO/`.
+
+---
+
+## Step 3: Configure GitHub Secrets
 
 GitHub Secrets store sensitive credentials securely. The workflow needs the following secrets:
 
-### 2.1 Navigate to Repository Settings
+### 3.1 Navigate to Repository Settings
 
 1. Go to your GitHub repository
 2. Click **Settings** (top menu)
 3. In the left sidebar, click **Secrets and variables** → **Actions**
 4. Click **New repository secret**
 
-### 2.2 Add Required Secrets
+### 3.2 Add Required Secrets
 
 Add each of the following secrets one by one:
 
@@ -102,12 +137,21 @@ Add each of the following secrets one by one:
 | `EMAIL_USERNAME` | Your email address | `your-email@gmail.com` |
 | `EMAIL_PASSWORD` | Email password or app password | For Gmail, use [App Password](https://support.google.com/accounts/answer/185833) |
 | `EMAIL_TO` | Recipient email address | `recipient@gmail.com` |
+| `EMAIL_FROM` | Sender email address | `your-email@gmail.com` |
+
+#### Supabase Configuration
+
+| Secret Name | Value | Where to Find |
+|-------------|-------|---------------|
+| `SUPABASE_URL` | Your Supabase project URL | Supabase dashboard → Settings → API |
+| `SUPABASE_ANON_KEY` | Public anon/read key | Supabase dashboard → Settings → API |
+| `SUPABASE_SERVICE_KEY` | Service role key (pipeline writes) | Supabase dashboard → Settings → API |
 
 ---
 
-## Step 3: Verify Secrets Configuration
+## Step 4: Verify Secrets Configuration
 
-After adding all secrets, you should have **14–15 secrets** (PLAYLIST_5_ID optional):
+After adding all secrets, you should have **17–18 secrets** (PLAYLIST_5_ID optional):
 
 1. ✅ SPOTIFY_CLIENT_ID
 2. ✅ SPOTIFY_CLIENT_SECRET
@@ -123,10 +167,14 @@ After adding all secrets, you should have **14–15 secrets** (PLAYLIST_5_ID opt
 12. ✅ EMAIL_USERNAME
 13. ✅ EMAIL_PASSWORD
 14. ✅ EMAIL_TO
+15. ✅ SUPABASE_URL
+16. ✅ SUPABASE_ANON_KEY
+17. ✅ SUPABASE_SERVICE_KEY
+18. ✅ EMAIL_FROM
 
 ---
 
-## Step 4: Test the Workflow
+## Step 5: Test the Workflow
 
 ### Manual Test Run
 
@@ -158,7 +206,7 @@ After successful execution:
 
 ---
 
-## Step 5: Understand the Schedule
+## Step 6: Understand the Schedule
 
 ### When Will It Run?
 
@@ -398,6 +446,6 @@ gh run view  # View latest run
 
 ---
 
-**Last Updated**: 2026-01-12
-**Workflow Version**: 1.0
+**Last Updated**: 2026-03-13
+**Workflow Version**: 2.0
 **Schedule**: Every Thursday at 11 PM PST (7 AM UTC Friday)
