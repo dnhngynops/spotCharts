@@ -28,6 +28,7 @@ env/
 # Node
 node_modules/
 frontend/dist/
+frontend/.vite/
 # Un-ignore frontend/src/lib/ — 'lib/' above is a Python build artifact pattern
 !frontend/src/lib/
 !frontend/src/lib/**

@@ -4,6 +4,14 @@ import type { RunData, Track, Artist, Analytics, TopArtist, GenreStat, MultiChar
 const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL     as string
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
+    'For local dev: add them to frontend/.env.local. ' +
+    'For CI: add SUPABASE_URL and SUPABASE_ANON_KEY to GitHub Actions secrets.'
+  )
+}
+
 // supabase is used for historical analytics queries (trend arrows, profile modals).
 // The anon key is read-only and safe to bundle here — same posture as the current
 // Jinja2 dashboard which bakes these values directly into the HTML.

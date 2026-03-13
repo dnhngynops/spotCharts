@@ -10,15 +10,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  generate-reports:
+  run-pipeline:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Changed to write to allow committing dashboard to branch
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -155,16 +150,29 @@ jobs:
       - name: Success notification
         if: success()
         run: |
-          echo "✅ Spotify Charts automation completed successfully!"
+          echo "Spotify Charts automation completed successfully!"
           echo "Reports generated and uploaded to Google Drive"
           echo "Email notification sent"
 
+  deploy-dashboard:
+    runs-on: ubuntu-latest
+    needs: run-pipeline
+    if: always()
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       # ── React dashboard build ────────────────────────────────────────────
-      # Runs after the Python pipeline so data.json (Phase 2+) is available
-      # before the Vite build copies it into the dist bundle.
 
       - name: Set up Node.js
-        if: success()
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -172,12 +180,10 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
-        if: success()
         run: npm ci
         working-directory: frontend
 
       - name: Build React dashboard
-        if: success()
         env:
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -187,22 +193,13 @@ jobs:
       # ── GitHub Pages deployment ──────────────────────────────────────────
 
       - name: Prepare dashboard for GitHub Pages
-        if: success()
         run: |
           mkdir -p docs
+          cp -r frontend/dist/. docs/
+          echo "React build copied to docs/"
+          echo "Build size: $(du -sh docs/ | cut -f1)"
 
-          # Copy the React build output (frontend/dist/) to docs/
-          if [ -d "frontend/dist" ]; then
-            cp -r frontend/dist/. docs/
-            echo "✅ React build copied to docs/"
-            echo "Build size: $(du -sh docs/ | cut -f1)"
-          else
-            echo "❌ ERROR: frontend/dist not found — React build may have failed"
-            exit 1
-          fi
-
-      - name: Commit dashboard to repository (for branch-based deployment)
-        if: success()
+      - name: Commit dashboard to repository
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -212,20 +209,17 @@ jobs:
           else
             git commit -m "Update dashboard: $(date '+%Y-%m-%d %H:%M:%S UTC')"
             git push origin main
-            echo "✅ Dashboard committed and pushed to main branch"
+            echo "Dashboard committed and pushed to main branch"
           fi
 
       - name: Setup Pages
-        if: success()
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
-        if: success()
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./docs
 
       - name: Deploy to GitHub Pages
-        if: success()
         id: deployment
         uses: actions/deploy-pages@v4
