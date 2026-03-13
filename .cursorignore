@@ -1,0 +1,15 @@
+# Reduce Cursor memory by excluding heavy or generated paths from indexing
+data/
+output/
+logs/
+credentials/
+.git/
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/

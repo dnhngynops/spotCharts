@@ -1,0 +1,231 @@
+name: Spotify Charts Automation
+
+on:
+  # Schedule: Every Thursday at 11 PM PST (7 AM UTC Friday)
+  # PST is UTC-8, so 11 PM PST Thursday = 7 AM UTC Friday
+  schedule:
+    - cron: '0 7 * * 5'  # 7 AM UTC every Friday (11 PM PST Thursday)
+
+  # Allow manual trigger for testing
+  workflow_dispatch:
+
+jobs:
+  generate-reports:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Changed to write to allow committing dashboard to branch
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Python pipeline ──────────────────────────────────────────────────
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install system dependencies for WeasyPrint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libpango-1.0-0 \
+            libpangoft2-1.0-0 \
+            libgdk-pixbuf2.0-0 \
+            libffi-dev \
+            libcairo2 \
+            shared-mime-info
+
+      - name: Install Chrome for Selenium
+        uses: browser-actions/setup-chrome@latest
+        with:
+          chrome-version: stable
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create credentials directory
+        run: mkdir -p credentials
+
+      - name: Setup Google Drive credentials
+        env:
+          GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
+        run: |
+          echo "$GOOGLE_DRIVE_CREDENTIALS" > credentials/google-drive-credentials.json
+
+      - name: Create .env file
+        env:
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          PLAYLIST_1_ID: ${{ secrets.PLAYLIST_1_ID }}
+          PLAYLIST_2_ID: ${{ secrets.PLAYLIST_2_ID }}
+          PLAYLIST_3_ID: ${{ secrets.PLAYLIST_3_ID }}
+          PLAYLIST_4_ID: ${{ secrets.PLAYLIST_4_ID }}
+          PLAYLIST_5_ID: ${{ secrets.PLAYLIST_5_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          cat > .env << EOF
+          # Spotify API Configuration
+          SPOTIFY_CLIENT_ID=$SPOTIFY_CLIENT_ID
+          SPOTIFY_CLIENT_SECRET=$SPOTIFY_CLIENT_SECRET
+
+          # Playlist IDs
+          PLAYLIST_1_ID=$PLAYLIST_1_ID
+          PLAYLIST_2_ID=$PLAYLIST_2_ID
+          PLAYLIST_3_ID=$PLAYLIST_3_ID
+          PLAYLIST_4_ID=$PLAYLIST_4_ID
+          PLAYLIST_5_ID=$PLAYLIST_5_ID
+
+          # Google Drive Configuration
+          GOOGLE_DRIVE_CREDENTIALS_PATH=./credentials/google-drive-credentials.json
+          GOOGLE_DRIVE_FOLDER_ID=$GOOGLE_DRIVE_FOLDER_ID
+
+          # Email Configuration
+          EMAIL_SMTP_SERVER=$EMAIL_SMTP_SERVER
+          EMAIL_SMTP_PORT=$EMAIL_SMTP_PORT
+          EMAIL_USERNAME=$EMAIL_USERNAME
+          EMAIL_PASSWORD=$EMAIL_PASSWORD
+          EMAIL_FROM=$EMAIL_FROM
+          EMAIL_TO=$EMAIL_TO
+
+          # Supabase (intermediate storage + historical analytics)
+          SUPABASE_URL=$SUPABASE_URL
+          SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+          SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY
+
+          # Report Generation Configuration
+          GENERATE_HTML=true
+          GENERATE_PDF=true
+          OUTPUT_DIR=./output
+          EOF
+
+      - name: Run Spotify Charts automation
+        run: |
+          echo "Starting Spotify Charts automation..."
+          echo "Timezone: $(TZ='America/Los_Angeles' date '+%Y-%m-%d %H:%M:%S %Z')"
+          echo "Chrome version: $(google-chrome --version || chromium --version || echo 'Chrome not found')"
+          python main.py
+
+      - name: Debug - Show first few tracks from each playlist
+        if: always()
+        run: |
+          echo "=== Debugging: Checking collected track data ==="
+          DASHBOARD=$(ls -t output/spotify_charts_dashboard_*.html 2>/dev/null | head -1)
+          if [ -f "$DASHBOARD" ]; then
+            echo "Dashboard file: $DASHBOARD"
+            echo "First 5 track names from dashboard:"
+            grep -oP '(?<=class="track-name"><a[^>]*>)[^<]+' "$DASHBOARD" | head -20 || echo "Could not extract track names"
+          fi
+
+      - name: Upload artifacts for debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-outputs
+          path: |
+            *.log
+            output/*.html
+            output/*.pdf
+            output/debug/*
+          retention-days: 7
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Spotify Charts automation failed. Check the logs above."
+
+      - name: Success notification
+        if: success()
+        run: |
+          echo "✅ Spotify Charts automation completed successfully!"
+          echo "Reports generated and uploaded to Google Drive"
+          echo "Email notification sent"
+
+      # ── React dashboard build ────────────────────────────────────────────
+      # Runs after the Python pipeline so data.json (Phase 2+) is available
+      # before the Vite build copies it into the dist bundle.
+
+      - name: Set up Node.js
+        if: success()
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        if: success()
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build React dashboard
+        if: success()
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: npm run build
+        working-directory: frontend
+
+      # ── GitHub Pages deployment ──────────────────────────────────────────
+
+      - name: Prepare dashboard for GitHub Pages
+        if: success()
+        run: |
+          mkdir -p docs
+
+          # Copy the React build output (frontend/dist/) to docs/
+          if [ -d "frontend/dist" ]; then
+            cp -r frontend/dist/. docs/
+            echo "✅ React build copied to docs/"
+            echo "Build size: $(du -sh docs/ | cut -f1)"
+          else
+            echo "❌ ERROR: frontend/dist not found — React build may have failed"
+            exit 1
+          fi
+
+      - name: Commit dashboard to repository (for branch-based deployment)
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          if git diff --staged --quiet; then
+            echo "No changes to commit (dashboard already up to date)"
+          else
+            git commit -m "Update dashboard: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+            git push origin main
+            echo "✅ Dashboard committed and pushed to main branch"
+          fi
+
+      - name: Setup Pages
+        if: success()
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        if: success()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+
+      - name: Deploy to GitHub Pages
+        if: success()
+        id: deployment
+        uses: actions/deploy-pages@v4
