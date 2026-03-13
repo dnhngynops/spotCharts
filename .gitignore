@@ -59,8 +59,9 @@ logs/*
 *.pdf
 !templates/*.html
 !templates/**/*.html
-# Allow the Vite entry point
+# Allow the Vite entry point and the root index for gh-pages
 !frontend/index.html
+!index.html
 # Allow full GitHub Pages build output (React assets + data.json)
 !docs/
 !docs/**
