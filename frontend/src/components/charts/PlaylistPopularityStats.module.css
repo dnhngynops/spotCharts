@@ -3,6 +3,8 @@
   border-radius: 12px;
   padding: 30px;
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
 }
 
 .sectionTitle {
@@ -79,7 +81,7 @@
 .histogramWrapper {
   display: flex;
   align-items: stretch;
-  margin-top: 8px;
+  margin-top: auto;
 }
 
 .yLabel {
