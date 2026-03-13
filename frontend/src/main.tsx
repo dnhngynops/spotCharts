@@ -8,6 +8,7 @@ import ChartsView from './components/charts/ChartsView'
 import DealProjectorView from './components/deal-projector/DealProjectorView'
 import RostersView from './components/rosters/RostersView'
 import AccountView from './components/account/AccountView'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 // createHashRouter: URLs look like /#/rosters
 // No 404 redirect config needed on GitHub Pages — the hash is handled client-side.
@@ -35,8 +36,10 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )

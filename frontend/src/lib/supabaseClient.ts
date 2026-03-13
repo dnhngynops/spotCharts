@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import type { RunData, Track, Artist, Analytics, TopArtist, GenreStat, MultiChartTrack, DurationBucket, CollaborationPair, ReleaseMomentum, AlbumDominance } from './types'
 
-const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL     as string
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL     || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
+
+if (!isSupabaseConfigured) {
+  console.warn(
     'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +
     'For local dev: add them to frontend/.env.local. ' +
     'For CI: add SUPABASE_URL and SUPABASE_ANON_KEY to GitHub Actions secrets.'
